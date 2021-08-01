@@ -15,22 +15,34 @@ PluginState: this is really just global state that's namespaced.
 
 import { BrowserWindow, app, Menu } from "electron"
 import { differenceBy, flatten, intersectionBy } from "lodash"
+import * as path from "path"
+import { MainApp, MainAppAction, MainAppPlugin, MainAppState } from "./state"
 
-export type MainSchema = {
-	windows: WindowSchema[]
-}
+// ==================================================================
+// State
+// ==================================================================
 
-export type WindowRect = {
+type WindowRect = {
 	x: number
 	y: number
 	width: number
 	height: number
 }
 
-export type WindowSchema = {
+type WindowState = {
 	id: string
 	rect: WindowRect
 }
+
+declare module "./state" {
+	interface MainAppState {
+		windows: WindowState[]
+	}
+}
+
+// ==================================================================
+// Action
+// ==================================================================
 
 type NewWindowAction = { type: "new-window" }
 
@@ -52,62 +64,24 @@ type ResizeWindowAction = {
 
 type FocusWindowAction = { type: "focus-window"; id: string }
 
-export type MainAction =
-	| NewWindowAction
-	| CloseWindowAction
-	| MoveWindowAction
-	| ResizeWindowAction
-	| FocusWindowAction
-
-export type State<S, A> = {
-	init: () => S
-	update: (state: S, action: A) => S
-}
-
-export type App<S, A> = {
-	state: S
-	dispatch(action: A): void
-}
-
-export type EffectPlugin<S, A> = (view: App<S, A>) => Effect<S>
-
-export type Effect<S> = {
-	update(prevState: S): void
-	destroy(): void
-}
-
-export function initMainState(): MainSchema {
-	const windowState = {
-		id: randomId(),
-		rect: initialRect(),
-	}
-	return {
-		windows: [windowState],
+declare module "./state" {
+	interface MainAppActions {
+		newWindowAction: NewWindowAction
+		closeWindowAction: CloseWindowAction
+		moveWindowAction: MoveWindowAction
+		resizeWindowAction: ResizeWindowAction
+		focusWindowAction: FocusWindowAction
 	}
 }
 
-export function updateMainState(
-	state: MainSchema,
-	action: MainAction
-): MainSchema {
-	switch (action.type) {
-		case "new-window":
-			return newWindow(state, action)
-		case "close-window":
-			return closeWindow(state, action)
-		case "move-window":
-			return moveWindow(state, action)
-		case "resize-window":
-			return resizeWindow(state, action)
-		case "focus-window":
-			return focusWindow(state, action)
-	}
-}
+// ==================================================================
+// Reducers
+// ==================================================================
 
-function newWindow(state: MainSchema, action: NewWindowAction): MainSchema {
+function newWindow(state: MainAppState, action: NewWindowAction): MainAppState {
 	const { windows } = state
 	const [focused, ...others] = windows
-	const window: WindowSchema = {
+	const window: WindowState = {
 		id: randomId(),
 		rect: {
 			x: focused.rect.x + 20,
@@ -122,7 +96,10 @@ function newWindow(state: MainSchema, action: NewWindowAction): MainSchema {
 	}
 }
 
-function closeWindow(state: MainSchema, action: CloseWindowAction): MainSchema {
+function closeWindow(
+	state: MainAppState,
+	action: CloseWindowAction
+): MainAppState {
 	const { windows } = state
 	const { id } = action
 
@@ -132,7 +109,10 @@ function closeWindow(state: MainSchema, action: CloseWindowAction): MainSchema {
 	}
 }
 
-function moveWindow(state: MainSchema, action: MoveWindowAction): MainSchema {
+function moveWindow(
+	state: MainAppState,
+	action: MoveWindowAction
+): MainAppState {
 	const { windows } = state
 	const { id, x, y } = action
 	return {
@@ -148,9 +128,9 @@ function moveWindow(state: MainSchema, action: MoveWindowAction): MainSchema {
 }
 
 function resizeWindow(
-	state: MainSchema,
+	state: MainAppState,
 	action: ResizeWindowAction
-): MainSchema {
+): MainAppState {
 	const { windows } = state
 	const { id, width, height } = action
 	return {
@@ -165,7 +145,10 @@ function resizeWindow(
 	}
 }
 
-function focusWindow(state: MainSchema, action: FocusWindowAction): MainSchema {
+function focusWindow(
+	state: MainAppState,
+	action: FocusWindowAction
+): MainAppState {
 	const { windows } = state
 	const [focused] = windows
 	const { id } = action
@@ -195,40 +178,46 @@ function initialRect(): WindowRect {
 	}
 }
 
-export class MainApp implements App<MainSchema, MainAction> {
-	private effects: Effect<MainSchema>[]
-	constructor(
-		public state: MainSchema,
-		plugins: EffectPlugin<MainSchema, MainAction>[]
-	) {
-		this.effects = plugins.map((plugin) => plugin(this))
+export function initMainState(): MainAppState {
+	const windowState = {
+		id: randomId(),
+		rect: initialRect(),
 	}
-
-	dispatch(action: MainAction) {
-		const prevState = this.state
-		this.state = updateMainState(prevState, action)
-		for (const effect of this.effects) {
-			effect.update(prevState)
-		}
-	}
-
-	destroy() {
-		for (const effect of this.effects) {
-			effect.destroy()
-		}
+	return {
+		windows: [windowState],
 	}
 }
 
-export const ElectronWindowPlugin: EffectPlugin<MainSchema, MainAction> = (
-	app
-) => {
+export function updateMainState(
+	state: MainAppState,
+	action: MainAppAction
+): MainAppState {
+	switch (action.type) {
+		case "new-window":
+			return newWindow(state, action)
+		case "close-window":
+			return closeWindow(state, action)
+		case "move-window":
+			return moveWindow(state, action)
+		case "resize-window":
+			return resizeWindow(state, action)
+		case "focus-window":
+			return focusWindow(state, action)
+	}
+}
+
+// ==================================================================
+// ElectronWindowPlugin
+// ==================================================================
+
+export const ElectronWindowPlugin: MainAppPlugin = (app) => {
 	return new ElectronWindowManager(app)
 }
 
 class ElectronWindowManager {
 	private browserWindows: { [id: string]: BrowserWindow | undefined } = {}
 
-	constructor(private app: App<MainSchema, MainAction>) {
+	constructor(private app: MainApp) {
 		const { windows } = app.state
 		const focused = windows[0]
 		const reversed = [...windows].reverse()
@@ -238,7 +227,7 @@ class ElectronWindowManager {
 		}
 	}
 
-	private initWindow(windowState: WindowSchema) {
+	private initWindow(windowState: WindowState) {
 		const browserWindow = createWindow(windowState.rect)
 		this.browserWindows[windowState.id] = browserWindow
 
@@ -265,7 +254,7 @@ class ElectronWindowManager {
 		return browserWindow
 	}
 
-	update(prevState: MainSchema) {
+	update(prevState: MainAppState) {
 		const nextState = this.app.state
 		if (nextState === prevState) return
 		if (nextState.windows === prevState.windows) return
@@ -308,7 +297,7 @@ class ElectronWindowManager {
 		}
 	}
 
-	updateWindow(windowState: WindowSchema) {
+	updateWindow(windowState: WindowState) {
 		const browserWindow = this.browserWindows[windowState.id]
 		if (!browserWindow) {
 			return this.initWindow(windowState)
@@ -332,8 +321,6 @@ class ElectronWindowManager {
 	}
 }
 
-import * as path from "path"
-
 function createWindow(rect: WindowRect) {
 	// Create the browser window.
 	const browserWindow = new BrowserWindow({
@@ -352,9 +339,11 @@ function createWindow(rect: WindowRect) {
 	return browserWindow
 }
 
-export const SystemMenuPlugin: EffectPlugin<MainSchema, MainAction> = (
-	mainApp
-) => {
+// ==================================================================
+// SystemMenuPlugin
+// ==================================================================
+
+export const SystemMenuPlugin: MainAppPlugin = (mainApp) => {
 	return {
 		update() {
 			const { windows } = mainApp.state

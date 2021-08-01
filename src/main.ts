@@ -1,18 +1,18 @@
 import { app, BrowserWindow } from "electron"
 import {
 	initMainState,
-	MainApp,
+	updateMainState,
 	ElectronWindowPlugin,
 	SystemMenuPlugin,
 } from "./MainApp"
+import { MainApp } from "./state"
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 
-let mainApp: MainApp
 app.on("ready", () => {
-	mainApp = new MainApp(initMainState(), [
+	const mainApp = new MainApp(initMainState(), updateMainState, [
 		ElectronWindowPlugin,
 		SystemMenuPlugin,
 	])
