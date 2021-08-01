@@ -1,3 +1,18 @@
+/*
+
+Goals:
+- state should be immutable and data-only.
+- view should be the container for the state/dispatch loop
+- plugins should implement the effects.
+
+In ProseMirror, State has plugins as well... and plugins can have their own State that can be controlled from elsewhere.
+
+StatePlugin: whenever I focus another window, re-position the underlying windows.
+PluginState: this is really just global state that's namespaced.
+
+
+*/
+
 import { BrowserWindow, app, Menu } from "electron"
 import { differenceBy, flatten, intersectionBy } from "lodash"
 
