@@ -2,6 +2,7 @@ import { app, BrowserWindow } from "electron"
 import {
 	initMainState,
 	updateMainState,
+	organizeWindows,
 	ElectronWindowPlugin,
 	SystemMenuPlugin,
 } from "./MainApp"
@@ -12,10 +13,16 @@ import { MainApp } from "./state"
 // Some APIs can only be used after this event occurs.
 
 app.on("ready", () => {
-	const mainApp = new MainApp(initMainState(), updateMainState, [
-		ElectronWindowPlugin,
-		SystemMenuPlugin,
-	])
+	const mainApp = new MainApp(
+		initMainState(),
+		(state, action) => {
+			const nextState = organizeWindows(updateMainState(state, action))
+			console.log("ACTION", action)
+			console.log("STATE", nextState)
+			return nextState
+		},
+		[ElectronWindowPlugin, SystemMenuPlugin]
+	)
 
 	app.on("activate", function () {
 		// On macOS it's common to re-create a window in the app when the

@@ -2,19 +2,13 @@
 
 Goals:
 - state should be immutable and data-only.
-- view should be the container for the state/dispatch loop
-- plugins should implement the effects.
-
-In ProseMirror, State has plugins as well... and plugins can have their own State that can be controlled from elsewhere.
-
-StatePlugin: whenever I focus another window, re-position the underlying windows.
-PluginState: this is really just global state that's namespaced.
-
+- app should be the container for the state/dispatch loop.
+- plugins should implement and manage the side-effects.
 
 */
 
 import { BrowserWindow, app, Menu } from "electron"
-import { differenceBy, flatten, intersectionBy } from "lodash"
+import { differenceBy, flatten, intersectionBy, throttle } from "lodash"
 import * as path from "path"
 import { MainApp, MainAppAction, MainAppPlugin, MainAppState } from "./state"
 
@@ -80,19 +74,22 @@ declare module "./state" {
 
 function newWindow(state: MainAppState, action: NewWindowAction): MainAppState {
 	const { windows } = state
-	const [focused, ...others] = windows
+	const [focused] = windows
+
 	const window: WindowState = {
 		id: randomId(),
-		rect: {
-			x: focused.rect.x + 20,
-			y: focused.rect.y + 20,
-			width: focused.rect.width,
-			height: focused.rect.height,
-		},
+		rect: focused
+			? {
+					x: focused.rect.x + 20,
+					y: focused.rect.y + 20,
+					width: focused.rect.width,
+					height: focused.rect.height,
+			  }
+			: initialRect(),
 	}
 	return {
 		...state,
-		windows: [window, focused, ...others],
+		windows: [window, ...windows],
 	}
 }
 
@@ -207,6 +204,31 @@ export function updateMainState(
 }
 
 // ==================================================================
+// "State Plugin" example.
+// ==================================================================
+
+// Imagine a "plugin" that organizes windows for us. It's a bit contrived here,
+// but it demonstrated the concept.
+export function organizeWindows(state: MainAppState) {
+	return {
+		...state,
+		windows: state.windows.map((win, i) => {
+			if (i === 0) return win
+			const { rect: prev } = state.windows[i - 1]
+			return {
+				...win,
+				rect: {
+					x: prev.x + 20,
+					y: prev.y + 20,
+					width: prev.width,
+					height: prev.height,
+				},
+			}
+		}),
+	}
+}
+
+// ==================================================================
 // ElectronWindowPlugin
 // ==================================================================
 
@@ -234,21 +256,31 @@ class ElectronWindowManager {
 		browserWindow.on("close", () => {
 			this.app.dispatch({ type: "close-window", id: windowState.id })
 		})
-		browserWindow.on("move", () => {
+
+		browserWindow.on("moved", () => {
+			// TODO: ideally this doesn't fire during the animation...
+			// We can deal with that later.
 			const [x, y] = browserWindow.getPosition()
-			this.app.dispatch({ type: "move-window", id: windowState.id, x, y })
+			if (windowState.rect.x !== x || windowState.rect.y !== y)
+				this.app.dispatch({ type: "move-window", id: windowState.id, x, y })
 		})
-		browserWindow.on("resize", () => {
+
+		browserWindow.on("resized", () => {
 			const [width, height] = browserWindow.getSize()
-			this.app.dispatch({
-				type: "resize-window",
-				id: windowState.id,
-				width,
-				height,
-			})
+			if (
+				windowState.rect.height !== height ||
+				windowState.rect.width !== width
+			)
+				this.app.dispatch({
+					type: "resize-window",
+					id: windowState.id,
+					width,
+					height,
+				})
 		})
 		browserWindow.on("focus", () => {
-			this.app.dispatch({ type: "focus-window", id: windowState.id })
+			if (this.app.state.windows[0]?.id !== windowState.id)
+				this.app.dispatch({ type: "focus-window", id: windowState.id })
 		})
 
 		return browserWindow
@@ -280,6 +312,7 @@ class ElectronWindowManager {
 
 		for (const win of destroyWindows) {
 			this.browserWindows[win.id]?.destroy()
+			delete this.browserWindows[win.id]
 		}
 		for (const win of updateWindows) {
 			this.updateWindow(win)
@@ -297,20 +330,38 @@ class ElectronWindowManager {
 		}
 	}
 
+	// Batch together the move updates.
+	private rectUpdates: { [id: string]: WindowRect } = {}
+	updateRect(id: string, rect: WindowRect) {
+		this.rectUpdates[id] = rect
+		this.throttledUpdateRects()
+	}
+	actuallyUpdateRects = () => {
+		for (const [id, rect] of Object.entries(this.rectUpdates)) {
+			const browserWindow = this.browserWindows[id]
+			if (!browserWindow) continue
+
+			const [x, y] = browserWindow.getPosition()
+			if (rect.x !== x || rect.y !== y)
+				browserWindow.setPosition(rect.x, rect.y, true)
+
+			const [width, height] = browserWindow.getSize()
+			if (rect.width !== width || rect.width !== height)
+				browserWindow.setSize(rect.width, rect.height, true)
+		}
+		this.rectUpdates = {}
+	}
+	throttledUpdateRects = throttle(this.actuallyUpdateRects, 200, {
+		leading: false,
+	})
+
 	updateWindow(windowState: WindowState) {
 		const browserWindow = this.browserWindows[windowState.id]
 		if (!browserWindow) {
 			return this.initWindow(windowState)
 		}
-		const { rect } = windowState
 
-		const [x, y] = browserWindow.getPosition()
-		if (rect.x !== x || rect.y !== y) browserWindow.setPosition(rect.x, rect.y)
-
-		const [width, height] = browserWindow.getSize()
-		if (rect.width !== width || rect.width !== height)
-			browserWindow.setSize(rect.width, rect.height, false)
-
+		this.updateRect(windowState.id, windowState.rect)
 		return browserWindow
 	}
 
