@@ -2,7 +2,6 @@ import { app, BrowserWindow } from "electron"
 import {
 	initMainState,
 	updateMainState,
-	organizeWindows,
 	ElectronWindowPlugin,
 	SystemMenuPlugin,
 } from "./MainApp"
@@ -16,8 +15,8 @@ app.on("ready", () => {
 	const mainApp = new MainApp(
 		initMainState(),
 		(state, action) => {
-			const nextState = organizeWindows(updateMainState(state, action))
 			console.log("ACTION", action)
+			const nextState = updateMainState(state, action)
 			console.log("STATE", nextState)
 			return nextState
 		},

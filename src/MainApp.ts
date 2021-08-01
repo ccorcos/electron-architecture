@@ -10,6 +10,7 @@ Goals:
 import { BrowserWindow, app, Menu } from "electron"
 import { differenceBy, flatten, intersectionBy, throttle } from "lodash"
 import * as path from "path"
+import { answerRenderer, callRenderer } from "./MainIPC"
 import { MainApp, MainAppAction, MainAppPlugin, MainAppState } from "./state"
 
 // ==================================================================
@@ -204,31 +205,6 @@ export function updateMainState(
 }
 
 // ==================================================================
-// "State Plugin" example.
-// ==================================================================
-
-// Imagine a "plugin" that organizes windows for us. It's a bit contrived here,
-// but it demonstrated the concept.
-export function organizeWindows(state: MainAppState) {
-	return {
-		...state,
-		windows: state.windows.map((win, i) => {
-			if (i === 0) return win
-			const { rect: prev } = state.windows[i - 1]
-			return {
-				...win,
-				rect: {
-					x: prev.x + 20,
-					y: prev.y + 20,
-					width: prev.width,
-					height: prev.height,
-				},
-			}
-		}),
-	}
-}
-
-// ==================================================================
 // ElectronWindowPlugin
 // ==================================================================
 
@@ -236,54 +212,130 @@ export const ElectronWindowPlugin: MainAppPlugin = (app) => {
 	return new ElectronWindowManager(app)
 }
 
+declare module "./IPC" {
+	interface RendererToMainIPC {
+		load(): WindowRect
+	}
+}
+
+class AppWindow {
+	private browserWindow: BrowserWindow
+	private listeners: (() => void)[] = []
+
+	constructor(private app: MainApp, private state: WindowState) {
+		const { id } = state
+
+		const browserWindow = createWindow(state.rect)
+		this.browserWindow = browserWindow
+
+		browserWindow.on("close", () => {
+			this.app.dispatch({ type: "close-window", id })
+		})
+		browserWindow.on("moved", this.handleMoved)
+		browserWindow.on("resized", this.handleResized)
+		browserWindow.on("focus", this.handleFocus)
+
+		this.listeners.push(
+			answerRenderer(browserWindow, "load", () => this.state.rect)
+		)
+		this.listeners.push(
+			answerRenderer(browserWindow, "setPosition", this.handleSetPosition)
+		)
+		this.listeners.push(
+			answerRenderer(browserWindow, "setSize", this.handleSetSize)
+		)
+	}
+
+	private handleMoved = () => {
+		const [x, y] = this.browserWindow.getPosition()
+		this.handleSetPosition({ x, y })
+	}
+
+	private handleSetPosition = ({ x, y }: { x: number; y: number }) => {
+		const { id } = this.state
+		if (this.state.rect.x !== x || this.state.rect.y !== y) {
+			this.app.dispatch({ type: "move-window", id, x, y })
+		}
+	}
+
+	private handleResized = () => {
+		const [width, height] = this.browserWindow.getSize()
+		this.handleSetSize({ height, width })
+	}
+
+	private handleSetSize = ({
+		height,
+		width,
+	}: {
+		height: number
+		width: number
+	}) => {
+		const { id } = this.state
+		if (this.state.rect.height !== height || this.state.rect.width !== width) {
+			this.app.dispatch({
+				type: "resize-window",
+				id,
+				width,
+				height,
+			})
+		}
+	}
+
+	private handleFocus = () => {
+		const { id } = this.state
+		if (this.app.state.windows[0]?.id !== id) {
+			this.app.dispatch({ type: "focus-window", id })
+		}
+	}
+
+	public focus() {
+		if (!this.browserWindow.isFocused()) {
+			this.browserWindow.focus()
+		}
+	}
+
+	public destroy() {
+		this.listeners.forEach((fn) => fn())
+		this.browserWindow.destroy()
+	}
+
+	public update(state: WindowState) {
+		// TODO: this is confusing how this is not prevState...
+		this.state = state
+		const { rect } = state
+
+		const [x, y] = this.browserWindow.getPosition()
+		if (rect.x !== x || rect.y !== y) {
+			this.browserWindow.setPosition(rect.x, rect.y, false)
+		}
+
+		const [width, height] = this.browserWindow.getSize()
+		if (rect.width !== width || rect.width !== height) {
+			this.browserWindow.setSize(rect.width, rect.height, false)
+		}
+
+		callRenderer(this.browserWindow, "updateSize", rect)
+		callRenderer(this.browserWindow, "updatePosition", rect)
+	}
+}
+
 class ElectronWindowManager {
-	private browserWindows: { [id: string]: BrowserWindow | undefined } = {}
+	private appWindows: { [id: string]: AppWindow | undefined } = {}
 
 	constructor(private app: MainApp) {
 		const { windows } = app.state
 		const focused = windows[0]
 		const reversed = [...windows].reverse()
 		for (const windowState of reversed) {
-			const browserWindow = this.initWindow(windowState)
-			if (windowState === focused) browserWindow.focus()
+			const appWindow = this.initWindow(windowState)
+			if (windowState === focused) appWindow.focus()
 		}
 	}
 
 	private initWindow(windowState: WindowState) {
-		const browserWindow = createWindow(windowState.rect)
-		this.browserWindows[windowState.id] = browserWindow
-
-		browserWindow.on("close", () => {
-			this.app.dispatch({ type: "close-window", id: windowState.id })
-		})
-
-		browserWindow.on("moved", () => {
-			// TODO: ideally this doesn't fire during the animation...
-			// We can deal with that later.
-			const [x, y] = browserWindow.getPosition()
-			if (windowState.rect.x !== x || windowState.rect.y !== y)
-				this.app.dispatch({ type: "move-window", id: windowState.id, x, y })
-		})
-
-		browserWindow.on("resized", () => {
-			const [width, height] = browserWindow.getSize()
-			if (
-				windowState.rect.height !== height ||
-				windowState.rect.width !== width
-			)
-				this.app.dispatch({
-					type: "resize-window",
-					id: windowState.id,
-					width,
-					height,
-				})
-		})
-		browserWindow.on("focus", () => {
-			if (this.app.state.windows[0]?.id !== windowState.id)
-				this.app.dispatch({ type: "focus-window", id: windowState.id })
-		})
-
-		return browserWindow
+		const appWindow = new AppWindow(this.app, windowState)
+		this.appWindows[windowState.id] = appWindow
+		return appWindow
 	}
 
 	update(prevState: MainAppState) {
@@ -311,11 +363,11 @@ class ElectronWindowManager {
 		)
 
 		for (const win of destroyWindows) {
-			this.browserWindows[win.id]?.destroy()
-			delete this.browserWindows[win.id]
+			this.appWindows[win.id]?.destroy()
+			delete this.appWindows[win.id]
 		}
 		for (const win of updateWindows) {
-			this.updateWindow(win)
+			this.appWindows[win.id]?.update(win)
 		}
 		for (const win of createWindows) {
 			this.initWindow(win)
@@ -323,51 +375,13 @@ class ElectronWindowManager {
 
 		const focused = nextWindows[0]
 		if (focused) {
-			const browserWindow = this.browserWindows[focused.id]
-			if (browserWindow && !browserWindow.isFocused()) {
-				browserWindow.focus()
-			}
+			this.appWindows[focused.id]?.focus()
 		}
-	}
-
-	// Batch together the move updates.
-	private rectUpdates: { [id: string]: WindowRect } = {}
-	updateRect(id: string, rect: WindowRect) {
-		this.rectUpdates[id] = rect
-		this.throttledUpdateRects()
-	}
-	actuallyUpdateRects = () => {
-		for (const [id, rect] of Object.entries(this.rectUpdates)) {
-			const browserWindow = this.browserWindows[id]
-			if (!browserWindow) continue
-
-			const [x, y] = browserWindow.getPosition()
-			if (rect.x !== x || rect.y !== y)
-				browserWindow.setPosition(rect.x, rect.y, true)
-
-			const [width, height] = browserWindow.getSize()
-			if (rect.width !== width || rect.width !== height)
-				browserWindow.setSize(rect.width, rect.height, true)
-		}
-		this.rectUpdates = {}
-	}
-	throttledUpdateRects = throttle(this.actuallyUpdateRects, 200, {
-		leading: false,
-	})
-
-	updateWindow(windowState: WindowState) {
-		const browserWindow = this.browserWindows[windowState.id]
-		if (!browserWindow) {
-			return this.initWindow(windowState)
-		}
-
-		this.updateRect(windowState.id, windowState.rect)
-		return browserWindow
 	}
 
 	destroy() {
-		for (const browserWindow of Object.values(this.browserWindows)) {
-			if (browserWindow) browserWindow.destroy()
+		for (const appWindow of Object.values(this.appWindows)) {
+			if (appWindow) appWindow.destroy()
 		}
 	}
 }
@@ -377,6 +391,8 @@ function createWindow(rect: WindowRect) {
 	const browserWindow = new BrowserWindow({
 		...rect,
 		webPreferences: {
+			nodeIntegration: true,
+			contextIsolation: false,
 			preload: path.join(__dirname, "preload.js"),
 		},
 	})
@@ -385,7 +401,7 @@ function createWindow(rect: WindowRect) {
 	browserWindow.loadFile(path.join(__dirname, "../index.html"))
 
 	// Open the DevTools.
-	// mainWindow.webContents.openDevTools()
+	browserWindow.webContents.openDevTools()
 
 	return browserWindow
 }
