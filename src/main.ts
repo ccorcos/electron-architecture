@@ -1,6 +1,6 @@
 import { app, BrowserWindow } from "electron"
 import { MainApp } from "./MainApp"
-import { MainWindowPlugin } from "./MainWindowPlugin"
+import { AppWindowPlugin } from "./AppWindowPlugin"
 import { SystemMenuPlugin } from "./SystemMenuPlugin"
 
 // This method will be called when Electron has finished
@@ -8,7 +8,7 @@ import { SystemMenuPlugin } from "./SystemMenuPlugin"
 // Some APIs can only be used after this event occurs.
 
 app.on("ready", () => {
-	const mainApp = new MainApp([MainWindowPlugin, SystemMenuPlugin])
+	const mainApp = new MainApp([AppWindowPlugin, SystemMenuPlugin])
 
 	app.on("activate", function () {
 		// On macOS it's common to re-create a window in the app when the
