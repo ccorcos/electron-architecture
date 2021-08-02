@@ -1,5 +1,5 @@
 import { answerMain, callMain } from "./RendererIPC"
-import { App, Plugin } from "./state"
+import { App, Plugin } from "../StateMachine"
 
 // ==================================================================
 // State

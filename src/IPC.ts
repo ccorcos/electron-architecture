@@ -1,6 +1,6 @@
 // TODO: don't extends this interface...
 
-import { WindowRect } from "./MainState"
+import { WindowRect } from "./main/MainState"
 
 export interface RendererToMainIPC {
 	load(): WindowRect

@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain, IpcRendererEvent } from "electron"
 import { IpcMainEvent } from "electron/main"
 import { deserializeError, serializeError } from "serialize-error"
-import { Async, MainToRendererIPC, RendererToMainIPC } from "./IPC"
+import { Async, MainToRendererIPC, RendererToMainIPC } from "../IPC"
 
 export function answerRenderer<T extends keyof RendererToMainIPC>(
 	browserWindow: BrowserWindow,

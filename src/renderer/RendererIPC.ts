@@ -1,6 +1,6 @@
 import { ipcRenderer, IpcRendererEvent } from "electron"
 import { serializeError, deserializeError } from "serialize-error"
-import { RendererToMainIPC, MainToRendererIPC, Async } from "./IPC"
+import { RendererToMainIPC, MainToRendererIPC, Async } from "../IPC"
 
 export function callMain<T extends keyof RendererToMainIPC>(
 	channel: T,

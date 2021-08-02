@@ -4,7 +4,7 @@ We'll model the main process state as a state machine, similar to Redux.
 
 */
 
-import { randomId } from "./utils"
+import { randomId } from "../utils"
 
 // ==================================================================
 // State

@@ -30,10 +30,10 @@ class AppWindow {
 			webPreferences: {
 				nodeIntegration: true,
 				contextIsolation: false,
-				preload: path.join(__dirname, "preload.js"),
+				preload: path.join(__dirname, "../renderer/preload.js"),
 			},
 		})
-		this.browserWindow.loadFile(path.join(__dirname, "../index.html"))
+		this.browserWindow.loadFile(path.join(__dirname, "../renderer/index.html"))
 
 		if (windowState.focused) {
 			this.browserWindow.show()

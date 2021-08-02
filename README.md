@@ -5,8 +5,7 @@ Goals:
 - app should be the container for the state/dispatch loop.
 - plugins should implement and manage the side-effects.
 
-
-Demonstrated a basic state machine architecture with all side-effects implemented as plugins.
+Here we've demonstrated a basic state machine architecture with all side-effects implemented as plugins.
 
 ```ts
 class App<State, Action> {
@@ -28,4 +27,4 @@ type Effect<State> = {
 }
 ```
 
-This example shows how to manipulate a set of Electron windows using this pattern.
+As an additional level of complexity, we can make effect declarative by using an intermediate data-structure for diffing, similar to React's virtual DOM. In the meantime, we simply have to manually update side-effect in response to changes in the app state.
