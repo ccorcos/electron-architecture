@@ -50,23 +50,3 @@ export type Effect<S> = {
 	update(prevState: S): void
 	destroy(): void
 }
-
-// ==================================================================
-// Main
-// ==================================================================
-
-export interface MainAppState {}
-export interface MainAppActions {}
-export type MainAppAction = MainAppActions[keyof MainAppActions]
-export type MainAppPlugin = Plugin<MainAppState, MainAppAction>
-export class MainApp extends App<MainAppState, MainAppAction> {}
-
-// ==================================================================
-// Main
-// ==================================================================
-
-export interface RendererAppState {}
-export interface RendererAppActions {}
-export type RendererAppAction = RendererAppActions[keyof RendererAppActions]
-export type RendererAppPlugin = Plugin<RendererAppState, RendererAppAction>
-export class RendererApp extends App<RendererAppState, RendererAppAction> {}

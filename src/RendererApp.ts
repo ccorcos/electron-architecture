@@ -1,10 +1,5 @@
-import {
-	RendererApp,
-	RendererAppAction,
-	RendererAppPlugin,
-	RendererAppState,
-} from "./state"
 import { answerMain, callMain } from "./RendererIPC"
+import { App, Plugin } from "./state"
 
 // ==================================================================
 // State
@@ -17,10 +12,8 @@ type WindowRect = {
 	height: number
 }
 
-declare module "./state" {
-	interface RendererAppState {
-		rect: WindowRect
-	}
+type RendererState = {
+	rect: WindowRect
 }
 
 // ==================================================================
@@ -39,21 +32,16 @@ type ResizeWindowAction = {
 	height: number
 }
 
-declare module "./state" {
-	interface RendererAppActions {
-		moveWindowAction: MoveWindowAction
-		resizeWindowAction: ResizeWindowAction
-	}
-}
+type RendererAction = MoveWindowAction | ResizeWindowAction
 
 // ==================================================================
 // Reducers
 // ==================================================================
 
-function moveWindow(
-	state: RendererAppState,
+function moveWindowReducer(
+	state: RendererState,
 	action: MoveWindowAction
-): RendererAppState {
+): RendererState {
 	const { rect } = state
 	const { x, y } = action
 	return {
@@ -61,10 +49,10 @@ function moveWindow(
 	}
 }
 
-function resizeWindow(
-	state: RendererAppState,
+function resizeWindowReducer(
+	state: RendererState,
 	action: ResizeWindowAction
-): RendererAppState {
+): RendererState {
 	const { rect } = state
 	const { height, width } = action
 	return {
@@ -72,15 +60,27 @@ function resizeWindow(
 	}
 }
 
-export function updateRendererState(
-	state: RendererAppState,
-	action: RendererAppAction
-): RendererAppState {
+export function rendererReducer(
+	state: RendererState,
+	action: RendererAction
+): RendererState {
 	switch (action.type) {
 		case "move-window":
-			return moveWindow(state, action)
+			return moveWindowReducer(state, action)
 		case "resize-window":
-			return resizeWindow(state, action)
+			return resizeWindowReducer(state, action)
+	}
+}
+
+// ==================================================================
+// App
+// ==================================================================
+
+export type RendererAppPlugin = Plugin<RendererState, RendererAction>
+
+export class RendererApp extends App<RendererState, RendererAction> {
+	constructor(initialState: RendererState, plugins: RendererAppPlugin[]) {
+		super(initialState, rendererReducer, plugins)
 	}
 }
 
@@ -88,23 +88,11 @@ export function updateRendererState(
 // WindowRectPlugin
 // ==================================================================
 
-export const WindowRectPlugin: RendererAppPlugin = (app) => {
-	return new WindowRectController(app)
+export const SyncWindowRectPlugin: RendererAppPlugin = (app) => {
+	return new SyncWindowRectController(app)
 }
 
-declare module "./IPC" {
-	interface RendererToMainIPC {
-		setPosition(args: { x: number; y: number }): void
-		setSize(args: { height: number; width: number }): void
-	}
-
-	interface MainToRendererIPC {
-		updatePosition(args: { x: number; y: number }): void
-		updateSize(args: { height: number; width: number }): void
-	}
-}
-
-class WindowRectController {
+class SyncWindowRectController {
 	private listeners: (() => void)[] = []
 
 	constructor(private app: RendererApp) {
@@ -120,7 +108,7 @@ class WindowRectController {
 		)
 	}
 
-	update(prevState: RendererAppState) {
+	update(prevState: RendererState) {
 		const nextState = this.app.state
 		if (nextState === prevState) return
 		if (nextState.rect === prevState.rect) return
@@ -145,11 +133,11 @@ class WindowRectController {
 	}
 }
 
-export const WindowRectViewPlugin: RendererAppPlugin = (app) => {
-	return new WindowRectViewController(app)
+export const DisplayWindowRectPlugin: RendererAppPlugin = (app) => {
+	return new DisplayWindowRectController(app)
 }
 
-class WindowRectViewController {
+class DisplayWindowRectController {
 	details: HTMLDivElement
 	button: HTMLButtonElement
 
@@ -166,8 +154,13 @@ class WindowRectViewController {
 			app.dispatch({ type: "move-window", x: x + 20, y })
 		})
 	}
+
 	update() {
 		this.details.innerText = JSON.stringify(this.app.state, null, 2)
 	}
-	destroy() {}
+
+	destroy() {
+		document.body.removeChild(this.details)
+		document.body.removeChild(this.button)
+	}
 }

@@ -6,18 +6,17 @@
 // needed in the renderer process.
 
 import {
-	updateRendererState,
-	WindowRectPlugin,
-	WindowRectViewPlugin,
+	RendererApp,
+	SyncWindowRectPlugin,
+	DisplayWindowRectPlugin,
 } from "./RendererApp"
 import { callMain } from "./RendererIPC"
-import { RendererApp } from "./state"
 
 async function main() {
 	const rect = await callMain("load")
-	const app = new RendererApp({ rect }, updateRendererState, [
-		WindowRectPlugin,
-		WindowRectViewPlugin,
+	const app = new RendererApp({ rect }, [
+		SyncWindowRectPlugin,
+		DisplayWindowRectPlugin,
 	])
 }
 

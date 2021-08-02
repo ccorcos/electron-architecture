@@ -1,27 +1,14 @@
 import { app, BrowserWindow } from "electron"
-import {
-	initMainState,
-	updateMainState,
-	ElectronWindowPlugin,
-	SystemMenuPlugin,
-} from "./MainApp"
-import { MainApp } from "./state"
+import { MainApp } from "./MainApp"
+import { MainWindowPlugin } from "./MainWindowPlugin"
+import { SystemMenuPlugin } from "./SystemMenuPlugin"
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 
 app.on("ready", () => {
-	const mainApp = new MainApp(
-		initMainState(),
-		(state, action) => {
-			console.log("ACTION", action)
-			const nextState = updateMainState(state, action)
-			console.log("STATE", nextState)
-			return nextState
-		},
-		[ElectronWindowPlugin, SystemMenuPlugin]
-	)
+	const mainApp = new MainApp([MainWindowPlugin, SystemMenuPlugin])
 
 	app.on("activate", function () {
 		// On macOS it's common to re-create a window in the app when the
