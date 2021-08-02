@@ -32,33 +32,6 @@ export function answerRenderer<T extends keyof RendererToMainIPC>(
 	}
 }
 
-// NOTE: this is specifically for use with VirtualBrowserWindow.props.onIpcMessage
-export function ipcMessageHandler(
-	args: {
-		[Channel in keyof RendererToMainIPC]?: (
-			...args: Parameters<RendererToMainIPC[Channel]>
-		) => ReturnType<RendererToMainIPC[Channel]>
-	}
-) {
-	return async (
-		browserWindow: BrowserWindow,
-		ipcChannel: string,
-		responseChannel: string,
-		...args: Array<any>
-	) => {
-		const fn = args[ipcChannel as any]
-		if (!fn) return
-		try {
-			const result = await (fn as any)(...args)
-			browserWindow.webContents.send(responseChannel, { data: result })
-		} catch (error) {
-			browserWindow.webContents.send(responseChannel, {
-				error: serializeError(error),
-			})
-		}
-	}
-}
-
 export function callRenderer<T extends keyof MainToRendererIPC>(
 	browserWindow: BrowserWindow,
 	channel: T,
