@@ -21,7 +21,4 @@ Non-goals:
 ## TODO
 - proper focus in app window state.
 
-- bring in the Game Counter architecture
-	- better naming
-
 - e2e testing frameworking

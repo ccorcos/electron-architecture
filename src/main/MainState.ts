@@ -9,6 +9,7 @@ export type WindowRect = {
 
 export type WindowState = {
 	id: string
+	focused: boolean
 	rect: WindowRect
 }
 
@@ -26,6 +27,6 @@ export function initRect() {
 }
 
 export function initMain(): MainState {
-	const windowState = { id: randomId(), rect: initRect() }
+	const windowState = { id: randomId(), rect: initRect(), focused: true }
 	return { windows: [windowState] }
 }

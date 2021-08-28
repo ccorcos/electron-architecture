@@ -1,35 +1,39 @@
 import { EffectPlugin, StateMachine } from "../StateMachine"
 import { randomId } from "../utils"
-import { initMain, initRect, MainState, WindowState } from "./MainState"
+import {
+	initMain,
+	initRect,
+	MainState,
+	WindowRect,
+	WindowState,
+} from "./MainState"
 
 function newWindow(state: MainState): MainState {
 	const { windows } = state
-	const [focused] = windows
+	const focused = windows[0]
 
-	const window: WindowState = {
+	const newWindow: WindowState = {
 		id: randomId(),
-		rect: focused
-			? {
-					x: focused.rect.x + 20,
-					y: focused.rect.y + 20,
-					width: focused.rect.width,
-					height: focused.rect.height,
-			  }
-			: initRect(),
+		focused: true,
+		rect: focused ? getOffsetRect(focused.rect) : initRect(),
 	}
+
 	return {
 		...state,
-		windows: [window, ...windows],
+		windows: [newWindow, ...unfocusWindows(windows)],
 	}
 }
 
-function closeWindow(state: MainState, id: string): MainState {
+function closeWindow(state: MainState, windowId: string): MainState {
 	const { windows } = state
 
-	return {
-		...state,
-		windows: windows.filter((win) => win.id !== id),
+	const newWindows = windows.filter((win) => win.id !== windowId)
+
+	if (newWindows.length > 0 && !newWindows[0].focused) {
+		newWindows[0] = { ...newWindows[0], focused: true }
 	}
+
+	return { ...state, windows: newWindows }
 }
 
 function moveWindow(
@@ -47,7 +51,7 @@ function moveWindow(
 		windows: windows.map((win) => {
 			if (win.id !== id) return win
 			return {
-				id,
+				...win,
 				rect: { ...win.rect, x, y },
 			}
 		}),
@@ -66,27 +70,38 @@ function resizeWindow(
 		windows: windows.map((win) => {
 			if (win.id !== id) return win
 			return {
-				id,
+				...win,
 				rect: { ...win.rect, width, height },
 			}
 		}),
 	}
 }
 
-function focusWindow(state: MainState, id: string): MainState {
+function focusWindow(state: MainState, windowId: string): MainState {
 	const { windows } = state
-	const [focused] = windows
 
-	if (focused.id === id) return state
+	const focusWindow = windows.find((win) => win.id === windowId)
+	if (!focusWindow) return state
 
-	const newFocused = windows.find((win) => win.id === id)
-	if (!newFocused) return state
+	const otherWindows = unfocusWindows(
+		windows.filter((win) => win.id !== windowId)
+	)
+	const newWindows = [{ ...focusWindow, focused: true }, ...otherWindows]
 
-	const newOthers = windows.filter((win) => win.id !== id)
+	return { ...state, windows: newWindows }
+}
+
+function getOffsetRect(rect: WindowRect): WindowRect {
 	return {
-		...state,
-		windows: [newFocused, ...newOthers],
+		x: rect.x + 20,
+		y: rect.y + 20,
+		width: rect.width,
+		height: rect.height,
 	}
+}
+
+function unfocusWindows(windows: WindowState[]) {
+	return windows.map((win) => (win.focused ? { ...win, focused: false } : win))
 }
 
 const mainReducers = {

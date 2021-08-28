@@ -17,12 +17,10 @@ export const AppWindowPlugin: MainAppPlugin = (app) => {
 	return new AppWindowController(app)
 }
 
-type AppWindowState = WindowState & { focused: boolean }
-
 class AppWindow {
 	private browserWindow: BrowserWindow
 
-	constructor(private mainApp: MainApp, private windowState: AppWindowState) {
+	constructor(private mainApp: MainApp, private windowState: WindowState) {
 		const { id, rect } = windowState
 		this.browserWindow = new BrowserWindow({
 			show: false,
@@ -30,16 +28,26 @@ class AppWindow {
 			webPreferences: {
 				nodeIntegration: true,
 				contextIsolation: false,
-				preload: path.join(__dirname, "../renderer/preload.js"),
+				preload: path.join(__dirname, "../../renderer/preload.js"),
 			},
 		})
-		this.browserWindow.loadFile(path.join(__dirname, "../renderer/index.html"))
+		this.browserWindow.loadFile(path.join(__dirname, "../../../index.html"))
 
-		if (windowState.focused) {
-			this.browserWindow.show()
-		} else {
-			this.browserWindow.showInactive()
-		}
+		this.browserWindow.once("ready-to-show", () => {
+			if (windowState.focused) {
+				this.browserWindow.show()
+			} else {
+				this.browserWindow.showInactive()
+			}
+		})
+
+		this.browserWindow.on("focus", () => {
+			setTimeout(() => {
+				if (!this.windowState.focused) {
+					mainApp.dispatch.focusWindow(id)
+				}
+			})
+		})
 
 		this.browserWindow.on("close", () => mainApp.dispatch.closeWindow(id))
 
@@ -78,7 +86,7 @@ class AppWindow {
 		})
 	}
 
-	updateState(nextState: AppWindowState) {
+	updateState(nextState: WindowState) {
 		const prevState = this.windowState
 		if (prevState === nextState) return
 		this.windowState = nextState
@@ -118,12 +126,9 @@ class AppWindowController {
 	private appWindows: { [id: string]: AppWindow } = {}
 
 	constructor(private mainApp: MainApp) {
-		mainApp.state.windows.forEach((win, i) => {
-			this.appWindows[win.id] = new AppWindow(mainApp, {
-				...win,
-				focused: i === 0,
-			})
-		})
+		for (const win of [...mainApp.state.windows].reverse()) {
+			this.appWindows[win.id] = new AppWindow(mainApp, win)
+		}
 	}
 
 	update(prevState: MainState) {
