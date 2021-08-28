@@ -1,16 +1,106 @@
-/*
+import { EffectPlugin, StateMachine } from "../StateMachine"
+import { randomId } from "../utils"
+import { initMain, initRect, MainState, WindowState } from "./MainState"
 
-This is the part the integrated the plugins and wires up the reducer loop.
+function newWindow(state: MainState): MainState {
+	const { windows } = state
+	const [focused] = windows
 
-*/
+	const window: WindowState = {
+		id: randomId(),
+		rect: focused
+			? {
+					x: focused.rect.x + 20,
+					y: focused.rect.y + 20,
+					width: focused.rect.width,
+					height: focused.rect.height,
+			  }
+			: initRect(),
+	}
+	return {
+		...state,
+		windows: [window, ...windows],
+	}
+}
 
-import { MainAction, mainInit, mainReducer, MainState } from "./MainState"
-import { App, Plugin } from "../StateMachine"
+function closeWindow(state: MainState, id: string): MainState {
+	const { windows } = state
 
-export type MainAppPlugin = Plugin<MainState, MainAction>
+	return {
+		...state,
+		windows: windows.filter((win) => win.id !== id),
+	}
+}
 
-export class MainApp extends App<MainState, MainAction> {
+function moveWindow(
+	state: MainState,
+	id: string,
+	point: {
+		x: number
+		y: number
+	}
+): MainState {
+	const { windows } = state
+	const { x, y } = point
+	return {
+		...state,
+		windows: windows.map((win) => {
+			if (win.id !== id) return win
+			return {
+				id,
+				rect: { ...win.rect, x, y },
+			}
+		}),
+	}
+}
+
+function resizeWindow(
+	state: MainState,
+	id: string,
+	size: { width: number; height: number }
+): MainState {
+	const { windows } = state
+	const { width, height } = size
+	return {
+		...state,
+		windows: windows.map((win) => {
+			if (win.id !== id) return win
+			return {
+				id,
+				rect: { ...win.rect, width, height },
+			}
+		}),
+	}
+}
+
+function focusWindow(state: MainState, id: string): MainState {
+	const { windows } = state
+	const [focused] = windows
+
+	if (focused.id === id) return state
+
+	const newFocused = windows.find((win) => win.id === id)
+	if (!newFocused) return state
+
+	const newOthers = windows.filter((win) => win.id !== id)
+	return {
+		...state,
+		windows: [newFocused, ...newOthers],
+	}
+}
+
+const mainReducers = {
+	newWindow,
+	closeWindow,
+	moveWindow,
+	resizeWindow,
+	focusWindow,
+}
+
+export type MainAppPlugin = EffectPlugin<MainState, typeof mainReducers>
+
+export class MainApp extends StateMachine<MainState, typeof mainReducers> {
 	constructor(plugins: MainAppPlugin[]) {
-		super(mainInit(), mainReducer, plugins)
+		super(initMain(), mainReducers, plugins)
 	}
 }

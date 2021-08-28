@@ -5,11 +5,9 @@
 // Use preload.js to selectively enable features
 // needed in the renderer process.
 
-import {
-	RendererApp,
-	SyncWindowRectPlugin,
-	DisplayWindowRectPlugin,
-} from "./RendererApp"
+import { DisplayWindowRectPlugin } from "./effects/DisplayWindowRect"
+import { SyncWindowRectPlugin } from "./effects/SyncWindowRect"
+import { RendererApp } from "./RendererApp"
 import { callMain } from "./RendererIPC"
 
 async function main() {
