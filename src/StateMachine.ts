@@ -6,41 +6,16 @@ export type TupleRest<T extends unknown[]> = T extends [any, ...infer U]
 	? U
 	: never
 
-export type AnyReducers<S> = { [fn: string]: (state: S, ...args: any[]) => S }
+type AnyReducers<S> = { [key: string]: (state: S, ...args: any[]) => S }
 
-/**
- * Defunctionalized action objects {fn: string, args: any[]}
- */
 export type Actions<R extends AnyReducers<any>> = {
 	[K in keyof R]: { fn: K; args: TupleRest<Parameters<R[K]>> }
 }[keyof R]
 
-/**
- * The dispatch proxy object so that "Rename Symbol" works:
- * https://twitter.com/ccorcos/status/1429545833242894339
- */
-export type Dispatcher<R extends AnyReducers<any>> = {
+type Dispatcher<R extends AnyReducers<any>> = {
 	[K in keyof R]: (...args: TupleRest<Parameters<R[K]>>) => void
 }
 
-/**
- * An effect plugin is an API for declaratively controlling the outside
- * world through controlling state. For example, React is an effect plugin.
- *
- * function ReactPlugin<S, R extends AnyReducers<S>>(
- * 	  node: any,
- * 	  render: (state: S) => JSX.Element
- *   ) {
- * 	  return function (app: StateMachine<S, R>) {
- * 		  ReactDOM.render(render(app.state), node)
- * 		  return {
- * 			  update: () => ReactDOM.render(render(app.state), node),
- * 			  destroy: () => ReactDOM.unmountComponentAtNode(node),
- *   		}
- *   	}
- * }
- *
- */
 export type EffectPlugin<S, R extends AnyReducers<S>> = (
 	app: StateMachine<S, R>
 ) => Effect<S>
@@ -50,37 +25,35 @@ export type Effect<S> = {
 	destroy(): void
 }
 
-/**
- * A Redux-like pattern that minimizes boilerplate and maximizes code editor UX.
- */
 export class StateMachine<S, R extends AnyReducers<S>> {
 	private effects: Effect<S>[]
 
 	constructor(
 		public state: S,
 		private reducers: R,
-		plugins: EffectPlugin<S, R>[] = []
+		plugins: EffectPlugin<S, R>[]
 	) {
-		// Initialize all effects.
 		this.effects = plugins.map((plugin) => plugin(this))
 	}
 
-	/**
-	 * Effects can dispatch more actions, but we want to make sure that we don't run
-	 * the next action until the previous finishes and updates the state. So we queue
-	 * up actions but everything still runs synchronously.
-	 */
-	private actions: Actions<R>[] = []
-	private dispatchAction(action: Actions<R>) {
-		console.info("dispatch:", action)
+	private onDispatches = new Set<(action: Actions<R>) => void>()
+
+	// Override this function to log or pipe actions elsewhere.
+	public onDispatch(fn: (action: Actions<R>) => void) {
+		this.onDispatches.add(fn)
+		return () => this.onDispatches.delete(fn)
+	}
+
+	public dispatchAction(action: Actions<R>) {
 		this.actions.push(action)
+		this.onDispatches.forEach((fn) => fn(action))
 		if (!this.running) {
 			this.running = true
 			this.flush()
-			this.listeners.forEach((fn) => fn())
 		}
 	}
 
+	// Using a Proxy so that you can cmd-click on a dispatched action to find the reducer.
 	public dispatch = (() => {
 		const self = this
 		return new Proxy(
@@ -94,9 +67,11 @@ export class StateMachine<S, R extends AnyReducers<S>> {
 	})() as Dispatcher<R>
 
 	private running = false
+	private actions: Actions<R>[] = []
 	private flush() {
 		if (this.actions.length === 0) {
 			this.running = false
+			this.listeners.forEach((fn) => fn())
 			return
 		}
 		const action = this.actions.shift()!
@@ -117,9 +92,8 @@ export class StateMachine<S, R extends AnyReducers<S>> {
 	private listeners = new Set<() => void>()
 
 	/**
-	 * Listeners are not called on every state/action. They are called after all
-	 * actions that are synchronously dispatched are finished processing. Make sure
-	 * you use the plugin argument if you want to compare with previous state for an effect.
+	 * Listener is called after all dispatches are processed. Make sure you use the
+	 * plugin argument if you want to compare with previous state for an effect.
 	 */
 	public addListener(listener: () => void) {
 		this.listeners.add(listener)

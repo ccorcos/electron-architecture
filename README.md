@@ -19,6 +19,9 @@ Non-goals:
 - StateMachine and IPC uses proxies so that "Rename Symbol" and "Find All References" VSCode commands work well.
 
 ## TODO
-- proper focus in app window state.
 
 - e2e testing frameworking
+	- boot up the app
+	- socket server apis
+	- sync app state across
+	- get position of button to click it
