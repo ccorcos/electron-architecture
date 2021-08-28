@@ -41,27 +41,25 @@ class AppWindow {
 			this.browserWindow.showInactive()
 		}
 
-		this.browserWindow.on("close", () =>
-			mainApp.dispatch({ type: "closeWindow", id })
-		)
+		this.browserWindow.on("close", () => mainApp.dispatch.closeWindow(id))
 
 		this.browserWindow.on("move", () => {
 			const [x, y] = this.browserWindow.getPosition()
 			const { rect } = this.windowState
 			if (rect.x === x && rect.y === y) return
-			mainApp.dispatch({ type: "moveWindow", id, x, y })
+			mainApp.dispatch.moveWindow(id, { x, y })
 		})
 
 		this.browserWindow.on("resize", () => {
 			const [width, height] = this.browserWindow.getSize()
 			const { rect } = this.windowState
 			if (rect.width === width && rect.height === height) return
-			mainApp.dispatch({ type: "resizeWindow", id, width, height })
+			mainApp.dispatch.resizeWindow(id, { width, height })
 		})
 
 		this.browserWindow.on("focus", () => {
 			if (!this.windowState.focused) {
-				mainApp.dispatch({ type: "focusWindow", id })
+				mainApp.dispatch.focusWindow(id)
 			}
 		})
 
@@ -70,13 +68,13 @@ class AppWindow {
 		answerRenderer(this.browserWindow, "setPosition", ({ x, y }) => {
 			const { rect } = this.windowState
 			if (rect.x === x && rect.y === y) return
-			mainApp.dispatch({ type: "moveWindow", id, x, y })
+			mainApp.dispatch.moveWindow(id, { x, y })
 		})
 
 		answerRenderer(this.browserWindow, "setSize", ({ width, height }) => {
 			const { rect } = this.windowState
 			if (rect.width === width && rect.height === height) return
-			mainApp.dispatch({ type: "resizeWindow", id, width, height })
+			mainApp.dispatch.resizeWindow(id, { width, height })
 		})
 	}
 

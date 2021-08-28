@@ -18,15 +18,13 @@ export const SystemMenuPlugin: MainAppPlugin = (mainApp) => {
 					{
 						label: "Close Window " + i,
 						click() {
-							mainApp.dispatch({ type: "closeWindow", id: win.id })
+							mainApp.dispatch.closeWindow(win.id)
 						},
 					},
 					{
 						label: "Move Window " + i,
 						click() {
-							mainApp.dispatch({
-								type: "moveWindow",
-								id: win.id,
+							mainApp.dispatch.moveWindow(win.id, {
 								x: win.rect.x + 20,
 								y: win.rect.y,
 							})
@@ -35,9 +33,7 @@ export const SystemMenuPlugin: MainAppPlugin = (mainApp) => {
 					{
 						label: "Resize Window " + i,
 						click() {
-							mainApp.dispatch({
-								type: "resizeWindow",
-								id: win.id,
+							mainApp.dispatch.resizeWindow(win.id, {
 								width: win.rect.width + 20,
 								height: win.rect.height,
 							})
@@ -46,10 +42,7 @@ export const SystemMenuPlugin: MainAppPlugin = (mainApp) => {
 					{
 						label: "Focus Window " + i,
 						click() {
-							mainApp.dispatch({
-								type: "focusWindow",
-								id: win.id,
-							})
+							mainApp.dispatch.focusWindow(win.id)
 						},
 					},
 				]
@@ -70,7 +63,7 @@ export const SystemMenuPlugin: MainAppPlugin = (mainApp) => {
 						{
 							label: "New Window",
 							click() {
-								mainApp.dispatch({ type: "newWindow" })
+								mainApp.dispatch.newWindow()
 							},
 						},
 						...flatten(items),
