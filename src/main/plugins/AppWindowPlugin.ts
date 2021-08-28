@@ -63,15 +63,15 @@ class AppWindow {
 			}
 		})
 
-		answerRenderer(this.browserWindow, "load", () => this.windowState.rect)
+		answerRenderer.load(this.browserWindow, () => this.windowState.rect)
 
-		answerRenderer(this.browserWindow, "setPosition", ({ x, y }) => {
+		answerRenderer.setPosition(this.browserWindow, ({ x, y }) => {
 			const { rect } = this.windowState
 			if (rect.x === x && rect.y === y) return
 			mainApp.dispatch.moveWindow(id, { x, y })
 		})
 
-		answerRenderer(this.browserWindow, "setSize", ({ width, height }) => {
+		answerRenderer.setSize(this.browserWindow, ({ width, height }) => {
 			const { rect } = this.windowState
 			if (rect.width === width && rect.height === height) return
 			mainApp.dispatch.resizeWindow(id, { width, height })
@@ -97,7 +97,7 @@ class AppWindow {
 
 		if (prevRect.x !== nextRect.x || prevRect.y !== nextRect.y) {
 			this.browserWindow.setPosition(nextRect.x, nextRect.y, false)
-			callRenderer(this.browserWindow, "updatePosition", nextRect)
+			callRenderer.updatePosition(this.browserWindow, nextRect)
 		}
 
 		if (
@@ -105,7 +105,7 @@ class AppWindow {
 			prevRect.width !== nextRect.width
 		) {
 			this.browserWindow.setSize(nextRect.width, nextRect.height, false)
-			callRenderer(this.browserWindow, "updateSize", nextRect)
+			callRenderer.updateSize(this.browserWindow, nextRect)
 		}
 	}
 

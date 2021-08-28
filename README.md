@@ -3,38 +3,25 @@
 Goals:
 - state should be immutable and data-only.
 - app should be the container for the state/dispatch loop.
-- plugins should implement and manage the side-effects.
+- plugins should manage side-effects.
+Non-goals:
+- frontend architecture (see: [game counter](https://github.com/ccorcos/game-counter))
 
-Here we've demonstrated a basic state machine architecture with all side-effects implemented as plugins.
+## Architecture
 
-```ts
-class App<State, Action> {
-	state: State
-	dispatch(action: Action): void
-
-	constructor(
-		initialState: State,
-		reducer: (state: State, action: Action) => State,
-		plugins: Plugin<State,Action>[]
-	)
-}
-
-type Plugin<State, Action> = (app: App<State, Action>) => Effect<State>
-
-type Effect<State> = {
-	update(prevState: State): void
-	destroy(): void
-}
-```
-
-As an additional level of complexity, we can make effect declarative by using an intermediate data-structure for diffing, similar to React's virtual DOM. In the meantime, we simply have to manually update side-effect in response to changes in the app state.
+- src/main/main is the entry point for main.
+	- MainState is the window state
+	- MainApp is the actions/reducers for the state
+	- AppWindowPlugin manages electron windows to be a fuction of state.
+- src/renderer/renderer is the entry point for renderer.
+	- RendererState basically mirrors the MainState for a specific window
+	- SyncWindowRectPlugin will update the renderer state when its updated from main and vice versa.
+- StateMachine and IPC uses proxies so that "Rename Symbol" and "Find All References" VSCode commands work well.
 
 ## TODO
 - proper focus in app window state.
 
 - bring in the Game Counter architecture
-	- state machine
-	- ipc
 	- better naming
 
 - e2e testing frameworking

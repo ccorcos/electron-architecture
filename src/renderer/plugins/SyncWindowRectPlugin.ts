@@ -1,5 +1,5 @@
 import { RendererApp, RendererAppPlugin } from "../RendererApp"
-import { answerMain, callMain } from "../RendererIPC"
+import { answerMainFn, callMain } from "../RendererIPC"
 import { RendererState } from "../RendererState"
 
 export const SyncWindowRectPlugin: RendererAppPlugin = (app) => {
@@ -14,12 +14,12 @@ class SyncWindowRectController {
 
 	constructor(private app: RendererApp) {
 		this.listeners.push(
-			answerMain("updatePosition", ({ x, y }) => {
+			answerMainFn("updatePosition", ({ x, y }) => {
 				app.dispatch.moveWindow({ x, y })
 			})
 		)
 		this.listeners.push(
-			answerMain("updateSize", ({ height, width }) => {
+			answerMainFn("updateSize", ({ height, width }) => {
 				app.dispatch.resizeWindow({ height, width })
 			})
 		)
@@ -34,14 +34,14 @@ class SyncWindowRectController {
 		const prevRect = prevState.rect
 
 		if (nextRect.x !== prevRect.x || nextRect.y !== prevRect.y) {
-			callMain("setPosition", nextRect)
+			callMain.setPosition(nextRect)
 		}
 
 		if (
 			nextRect.width !== prevRect.width ||
 			nextRect.height !== prevRect.height
 		) {
-			callMain("setSize", nextRect)
+			callMain.setSize(nextRect)
 		}
 	}
 

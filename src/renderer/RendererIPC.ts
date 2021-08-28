@@ -1,11 +1,26 @@
 import { ipcRenderer, IpcRendererEvent } from "electron"
-import { serializeError, deserializeError } from "serialize-error"
-import { RendererToMainIPC, MainToRendererIPC, Async } from "../IPC"
+import { deserializeError, serializeError } from "serialize-error"
+import { Asyncify, MainToRendererIPC, RendererToMainIPC } from "../IPC"
 
-export function callMain<T extends keyof RendererToMainIPC>(
+type CallMain = {
+	[T in keyof RendererToMainIPC]: (
+		...args: Parameters<RendererToMainIPC[T]>
+	) => ReturnType<Asyncify<RendererToMainIPC[T]>>
+}
+
+export const callMain = new Proxy(
+	{},
+	{
+		get(target, prop: any, receiver) {
+			return (...args: any[]) => callMainFn(prop, ...args)
+		},
+	}
+) as CallMain
+
+function callMainFn<T extends keyof RendererToMainIPC>(
 	channel: T,
 	...args: Parameters<RendererToMainIPC[T]>
-): ReturnType<Async<RendererToMainIPC[T]>> {
+): ReturnType<Asyncify<RendererToMainIPC[T]>> {
 	const promise = new Promise((resolve, reject) => {
 		const responseChannel = `${channel}-${Date.now()}-${Math.random()}`
 
@@ -27,7 +42,20 @@ export function callMain<T extends keyof RendererToMainIPC>(
 	return promise as any
 }
 
-export function answerMain<T extends keyof MainToRendererIPC>(
+type AnswerMain = {
+	[T in keyof MainToRendererIPC]: (fn: MainToRendererIPC[T]) => () => void
+}
+
+export const answerMain = new Proxy(
+	{},
+	{
+		get(target, prop: any, receiver) {
+			return (fn: any) => answerMainFn(prop, fn)
+		},
+	}
+) as AnswerMain
+
+export function answerMainFn<T extends keyof MainToRendererIPC>(
 	channel: T,
 	fn: MainToRendererIPC[T]
 ) {

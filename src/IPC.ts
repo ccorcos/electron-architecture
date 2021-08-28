@@ -15,6 +15,6 @@ export interface MainToRendererIPC {
 
 type AnyFunction = (...args: any[]) => any
 
-export type Async<F extends AnyFunction> = ReturnType<F> extends Promise<any>
+export type Asyncify<F extends AnyFunction> = ReturnType<F> extends Promise<any>
 	? F
 	: (...args: Parameters<F>) => Promise<ReturnType<F>>

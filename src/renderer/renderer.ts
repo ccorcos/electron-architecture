@@ -11,7 +11,7 @@ import { RendererApp } from "./RendererApp"
 import { callMain } from "./RendererIPC"
 
 async function main() {
-	const rect = await callMain("load")
+	const rect = await callMain.load()
 	const app = new RendererApp({ rect }, [
 		SyncWindowRectPlugin,
 		DisplayWindowRectPlugin,
