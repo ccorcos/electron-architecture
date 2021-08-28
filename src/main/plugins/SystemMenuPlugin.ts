@@ -6,7 +6,7 @@ Inside the "Dispatch" menu are a bunch of tools for debugging.
 
 import { app, Menu } from "electron"
 import { flatten } from "lodash"
-import { MainAppPlugin } from "./MainApp"
+import { MainAppPlugin } from "../MainApp"
 
 export const SystemMenuPlugin: MainAppPlugin = (mainApp) => {
 	return {

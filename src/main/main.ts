@@ -1,7 +1,7 @@
 import { app, BrowserWindow } from "electron"
-import { AppWindowPlugin } from "./AppWindowPlugin"
 import { MainApp } from "./MainApp"
-import { SystemMenuPlugin } from "./SystemMenuPlugin"
+import { AppWindowPlugin } from "./plugins/AppWindowPlugin"
+import { SystemMenuPlugin } from "./plugins/SystemMenuPlugin"
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.

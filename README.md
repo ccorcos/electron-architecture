@@ -30,5 +30,11 @@ type Effect<State> = {
 As an additional level of complexity, we can make effect declarative by using an intermediate data-structure for diffing, similar to React's virtual DOM. In the meantime, we simply have to manually update side-effect in response to changes in the app state.
 
 ## TODO
+- proper focus in app window state.
+
 - bring in the Game Counter architecture
+	- state machine
+	- ipc
+	- better naming
+
 - e2e testing frameworking

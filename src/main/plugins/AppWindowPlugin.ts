@@ -9,9 +9,9 @@ of the updates. But for now, this is what we're working with.
 import { BrowserWindow } from "electron"
 import { differenceBy, intersectionBy } from "lodash"
 import * as path from "path"
-import { MainApp, MainAppPlugin } from "./MainApp"
-import { answerRenderer, callRenderer } from "./MainIPC"
-import { MainState, WindowState } from "./MainState"
+import { MainApp, MainAppPlugin } from "../MainApp"
+import { answerRenderer, callRenderer } from "../MainIPC"
+import { MainState, WindowState } from "../MainState"
 
 export const AppWindowPlugin: MainAppPlugin = (app) => {
 	return new AppWindowController(app)
