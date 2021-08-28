@@ -21,13 +21,13 @@ type RendererState = {
 // ==================================================================
 
 type MoveWindowAction = {
-	type: "move-window"
+	type: "moveWindow"
 	x: number
 	y: number
 }
 
 type ResizeWindowAction = {
-	type: "resize-window"
+	type: "resizeWindow"
 	width: number
 	height: number
 }
@@ -65,9 +65,9 @@ export function rendererReducer(
 	action: RendererAction
 ): RendererState {
 	switch (action.type) {
-		case "move-window":
+		case "moveWindow":
 			return moveWindowReducer(state, action)
-		case "resize-window":
+		case "resizeWindow":
 			return resizeWindowReducer(state, action)
 	}
 }
@@ -98,12 +98,12 @@ class SyncWindowRectController {
 	constructor(private app: RendererApp) {
 		this.listeners.push(
 			answerMain("updatePosition", ({ x, y }) => {
-				app.dispatch({ type: "move-window", x, y })
+				app.dispatch({ type: "moveWindow", x, y })
 			})
 		)
 		this.listeners.push(
 			answerMain("updateSize", ({ height, width }) => {
-				app.dispatch({ type: "resize-window", height, width })
+				app.dispatch({ type: "resizeWindow", height, width })
 			})
 		)
 	}
@@ -151,7 +151,7 @@ class DisplayWindowRectController {
 		document.body.appendChild(this.button)
 		this.button.addEventListener("click", () => {
 			const { x, y } = app.state.rect
-			app.dispatch({ type: "move-window", x: x + 20, y })
+			app.dispatch({ type: "moveWindow", x: x + 20, y })
 		})
 	}
 

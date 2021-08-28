@@ -30,25 +30,27 @@ export type MainState = {
 // Action
 // ==================================================================
 
-export type NewWindowAction = { type: "new-window" }
+// We want action creators so we can do reverse lookup!
 
-export type CloseWindowAction = { type: "close-window"; id: string }
+export type NewWindowAction = { type: "newWindow" }
+
+export type CloseWindowAction = { type: "closeWindow"; id: string }
 
 export type MoveWindowAction = {
-	type: "move-window"
+	type: "moveWindow"
 	id: string
 	x: number
 	y: number
 }
 
 export type ResizeWindowAction = {
-	type: "resize-window"
+	type: "resizeWindow"
 	id: string
 	width: number
 	height: number
 }
 
-export type FocusWindowAction = { type: "focus-window"; id: string }
+export type FocusWindowAction = { type: "focusWindow"; id: string }
 
 export type MainAction =
 	| NewWindowAction
@@ -170,15 +172,15 @@ export function mainInit(): MainState {
 
 export function mainReducer(state: MainState, action: MainAction): MainState {
 	switch (action.type) {
-		case "new-window":
+		case "newWindow":
 			return newWindowReducer(state, action)
-		case "close-window":
+		case "closeWindow":
 			return closeWindowReducer(state, action)
-		case "move-window":
+		case "moveWindow":
 			return moveWindowReducer(state, action)
-		case "resize-window":
+		case "resizeWindow":
 			return resizeWindowReducer(state, action)
-		case "focus-window":
+		case "focusWindow":
 			return focusWindowReducer(state, action)
 	}
 }
