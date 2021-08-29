@@ -136,3 +136,13 @@ export async function click(renderer: RendererHarness, cssSelector: string) {
 export function sleep(ms = 0) {
 	return new Promise<void>((resolve) => setTimeout(resolve, ms))
 }
+
+type Point = { x: number; y: number }
+
+export async function drag(from: Point, to: Point) {
+	await nut.mouse.move([from])
+	await sleep(10)
+	await nut.mouse.pressButton(nut.Button.LEFT)
+	await nut.mouse.move([to])
+	await nut.mouse.releaseButton(nut.Button.LEFT)
+}

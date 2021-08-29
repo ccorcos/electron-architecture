@@ -1,6 +1,6 @@
 import { strict as assert } from "assert"
 import { describe } from "mocha"
-import { click, shortcut, test } from "./testHelpers"
+import { click, drag, shortcut, test } from "./testHelpers"
 
 describe("App", function () {
 	this.timeout(100000)
@@ -25,7 +25,18 @@ describe("App", function () {
 		assert.equal(harness.renderers.length, 2)
 	})
 
-	test("DragWindow", async (harness) => {})
+	test("Drag Window", async (harness) => {
+		const window = harness.renderers[0]
+		const { y, x, width } = window.state.rect
+		const start = { x: x + width / 2, y: y + 10 }
+		const end = { x: start.x + 300, y: start.y + 200 }
+		await drag(start, end)
+
+		await window.changedState()
+		const newRect = window.state.rect
+		assert.equal(newRect.y, y + 200)
+		assert.equal(newRect.x, x + 300)
+	})
 
 	test("ResizeWindow", async (harness) => {})
 })
