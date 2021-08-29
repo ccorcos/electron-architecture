@@ -20,12 +20,7 @@ Non-goals:
 
 ## TODO
 
-- e2e testing frameworking
-	- boot up the app
-	- socket server apis
-	- sync app state across
-	- get position of button to click it
-
+Explain the architecture in more detail. What problems are we solving here?
 
 How does this thing work?
 - harness connects to main and renderer processes.
