@@ -3,7 +3,6 @@ import { describe } from "mocha"
 import { click, drag, shortcut, test } from "./testHelpers"
 
 // The confusing part about this abstraction: inspecting multiple sources of truth.
-
 describe("App", function () {
 	this.timeout(100000)
 
