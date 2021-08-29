@@ -25,12 +25,12 @@ type MainToHarness = {
 export const MAIN_PORT = 1337
 export const RENDERER_PORT = 1338
 
-export type AppTestHarness = TestHarness<
+export class AppTestHarness extends TestHarness<
 	HarnessToMain,
 	MainToHarness,
 	HarnessToRenderer,
 	RendererToHarness
->
+> {}
 
 export function connectRendererToTestHarness() {
 	return connectToTestHarness<RendererToHarness, HarnessToRenderer>(

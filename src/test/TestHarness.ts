@@ -1,6 +1,9 @@
 import * as net from "net"
+import { deserializeError, serializeError } from "serialize-error"
+import { DeferredPromise } from "../shared/DeferredPromise"
 import { createProxy } from "../shared/proxyHelpers"
 import { Answerer, AnyFunctionMap, Caller } from "../shared/typeHelpers"
+import { randomId } from "../utils"
 
 function serializeMessage(json: any): string {
 	return JSON.stringify(json) + "\x00"
@@ -14,7 +17,15 @@ function parseMessages(data: Buffer): any[] {
 		.map((str) => JSON.parse(str))
 }
 
-type Message = { fn: string; args: any[] }
+type RequestMessage = { type: "request"; id: string; fn: string; args: any[] }
+type ResponseMessage = {
+	type: "response"
+	id: string
+	error?: any
+	result?: any
+}
+
+type Message = RequestMessage | ResponseMessage
 
 type Listener = (message: Message) => void
 
@@ -56,15 +67,44 @@ export class TestHarnessConnection<
 	}
 
 	call = createProxy<Caller<C>>((fn: string, ...args) => {
-		this.socket.send({ fn, args })
-		// TODO: return the response.
+		const deferred = new DeferredPromise<any>()
+		const id = randomId()
+
+		const stop = this.socket.onMessage((message) => {
+			if (message.type !== "response") return
+			if (message.id !== id) return
+
+			if (message.error) {
+				deferred.reject(deserializeError(message.error))
+			} else {
+				deferred.resolve(message.result)
+			}
+			stop()
+		})
+
+		this.socket.send({ type: "request", id, fn, args })
+
+		return deferred.promise
 	})
 
 	answer = createProxy<Answerer<A>>((fn, callback) => {
-		return this.socket.onMessage((message) => {
+		return this.socket.onMessage(async (message) => {
+			if (message.type !== "request") return
 			if (message.fn === fn) {
-				callback(...message.args)
-				// TODO: return the response
+				try {
+					const result = await callback(...message.args)
+					this.socket.send({
+						type: "response",
+						id: message.id,
+						result: result,
+					})
+				} catch (error) {
+					this.socket.send({
+						type: "response",
+						id: message.id,
+						error: serializeError(error),
+					})
+				}
 			}
 		})
 	})

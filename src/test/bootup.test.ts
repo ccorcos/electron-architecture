@@ -1,22 +1,14 @@
 import * as nut from "@nut-tree/nut-js"
-// import { createTestHarnessServer } from "../../test/TestHarness"
-// import { tmpDir } from "../../test/tmpDir"
-// import { rootPath } from "../../tools/rootPath"
-// import { DeferredPromise } from "../shared/promiseHelpers"
-// nut.keyboard.config.autoDelayMs = 0.1
-// nut.mouse.config.autoDelayMs = 0.1
-// nut.mouse.config.mouseSpeed = 3000
-// Tests
-// - start fresh, type, save doc, quit
-// - restart, same doc should be open.
 import { strict as assert } from "assert"
 import * as child_process from "child_process"
-// import * as child_process from "child_process"
-// import * as fs from "fs-extra"
 import { describe, it } from "mocha"
 import { DeferredPromise } from "../shared/DeferredPromise"
 import { rootPath } from "../tools/rootPath"
 import { createAppTestHarness } from "./AppTestHarness"
+
+nut.keyboard.config.autoDelayMs = 0.1
+nut.mouse.config.autoDelayMs = 500
+nut.mouse.config.mouseSpeed = 1
 
 async function bootup(cliArgs: string[] = []) {
 	const harness = await createAppTestHarness()
@@ -74,18 +66,45 @@ describe("WindowService", function () {
 
 	it("BootupApp", async () => {
 		const harness = await bootup()
-		await sleep(500)
+
+		// TODO: wait for main and renderer process to connect.
+		await sleep(2000)
 
 		try {
 			console.log("Ready")
 			assert.equal(harness.renderers.length, 1)
 
 			// MetaKey is Super.
-			await nut.keyboard.pressKey(nut.Key.LeftSuper, nut.Key.N)
-			await nut.keyboard.releaseKey(nut.Key.LeftSuper, nut.Key.N)
-			await sleep(500)
+			// await nut.keyboard.pressKey(nut.Key.LeftSuper, nut.Key.N)
+			// await nut.keyboard.releaseKey(nut.Key.LeftSuper, nut.Key.N)
+			// await sleep(500)
+			//
+			// assert.equal(harness.renderers.length, 2)
 
-			assert.equal(harness.renderers.length, 2)
+			async function clickButton() {
+				const rect = await harness.renderers[0].call.measureDOM("button")
+				assert.ok(rect)
+
+				const activeWindow = await nut.getActiveWindow()
+				const region = await activeWindow.region
+				const topbarHeight = 25
+
+				await nut.mouse.move([
+					{
+						x: region.left + rect.x + rect.width / 2,
+						y: topbarHeight + region.top + rect.y + rect.height / 2,
+					},
+				])
+
+				await nut.mouse.leftClick()
+			}
+
+			for (let i = 0; i < 10; i++) {
+				await clickButton()
+				await sleep(500)
+			}
+
+			await sleep(5000)
 
 			/*
 				const window = app.main.windows[0]
@@ -94,6 +113,8 @@ describe("WindowService", function () {
 				move window around
 				new window
 			*/
+		} catch (error) {
+			throw error
 		} finally {
 			console.log("Closing")
 			await harness.destroy()
