@@ -38,5 +38,17 @@ describe("App", function () {
 		assert.equal(newRect.x, x + 300)
 	})
 
-	test("ResizeWindow", async (harness) => {})
+	test("Resize Window", async (harness) => {
+		const window = harness.renderers[0]
+		const { y, x, width, height } = window.state.rect
+		const start = { x: x + width, y: y + height }
+		const end = { x: start.x + 300, y: start.y + 200 }
+		await drag(start, end)
+		await window.changedState()
+		const newRect = window.state.rect
+		assert.equal(newRect.y, y)
+		assert.equal(newRect.x, x)
+		assert.equal(newRect.height, height + 200)
+		assert.equal(newRect.width, width + 300)
+	})
 })

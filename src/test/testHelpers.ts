@@ -143,6 +143,8 @@ export async function drag(from: Point, to: Point) {
 	await nut.mouse.move([from])
 	await sleep(10)
 	await nut.mouse.pressButton(nut.Button.LEFT)
+	await sleep(10)
 	await nut.mouse.move([to])
+	await sleep(10)
 	await nut.mouse.releaseButton(nut.Button.LEFT)
 }
