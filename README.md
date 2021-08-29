@@ -226,6 +226,18 @@ test("Move Window Button", async (harness) => {
 
 We're using `nut.js` under the hood for all the mouse and keyboard automation so there's no virtual events to worry about. You can do things like drag the browser window around which is not possible Selenium or Spectron.
 
+Also, did I mention that these tests are much faster than Selenium?
+
+```
+  App
+    ✓ Starts up. (1165ms)
+    ✓ Move Window Button (1012ms)
+    ✓ New Window (1495ms)
+    ✓ Drag Window (1005ms)
+    ✓ Resize Window (1028ms)
+```
+
+It's not light speed, but still pretty quick for an e2e test that boots up the app and moves windows around!
 
 ### What's left?
 
