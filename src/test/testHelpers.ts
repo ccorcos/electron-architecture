@@ -143,9 +143,9 @@ type Point = { x: number; y: number }
 
 export async function drag(from: Point, to: Point) {
 	await nut.mouse.move([from])
-	await sleep(50)
+	await sleep(500)
 	await nut.mouse.pressButton(nut.Button.LEFT)
-	await sleep(50)
+	await sleep(500)
 	await nut.mouse.move([to])
 	await nut.mouse.releaseButton(nut.Button.LEFT)
 }
