@@ -1,7 +1,7 @@
 import * as nut from "@nut-tree/nut-js"
 import { strict as assert } from "assert"
 import * as child_process from "child_process"
-import { describe, it } from "mocha"
+import { it } from "mocha"
 import { DeferredPromise } from "../shared/DeferredPromise"
 import { rootPath } from "../tools/rootPath"
 import { createTestHarness, RendererHarness, TestHarness } from "./TestHarness"
@@ -10,7 +10,7 @@ nut.keyboard.config.autoDelayMs = 100
 nut.mouse.config.autoDelayMs = 100
 nut.mouse.config.mouseSpeed = 1000
 
-async function bootup(cliArgs: string[] = []) {
+export async function bootup(cliArgs: string[] = []) {
 	const harness = await createTestHarness()
 
 	// Run the app.
@@ -58,7 +58,7 @@ async function bootup(cliArgs: string[] = []) {
 	return harness
 }
 
-function test(
+export function test(
 	testName: string,
 	fn: (harness: TestHarness) => void | Promise<void>
 ) {
@@ -74,57 +74,16 @@ function test(
 	})
 }
 
-describe("WindowService", function () {
-	this.timeout(100000)
-
-	test("BootupApp", async (harness) => {
-		assert.equal(harness.renderers.length, 1)
-
-		// MetaKey is Super.
-		// await nut.keyboard.pressKey(nut.Key.LeftSuper, nut.Key.N)
-		// await nut.keyboard.releaseKey(nut.Key.LeftSuper, nut.Key.N)
-		// await sleep(500)
-		//
-		// assert.equal(harness.renderers.length, 2)
-
-		async function clickButton() {
-			await click(harness.renderers[0], "button")
-		}
-
-		for (let i = 0; i < 10; i++) {
-			await clickButton()
-			// await sleep(500)
-		}
-
-		await sleep(5000)
-
-		/*
-			const window = app.main.windows[0]
-			click("body button", window)
-
-			move window around
-			new window
-		*/
-	})
-})
-
-function sleep(ms = 0) {
-	return new Promise<void>((resolve) => setTimeout(resolve, ms))
-}
-
-async function measureDOM(renderer: RendererHarness, cssSelector: string) {
-	const rect = await renderer.call.measureDOM("button")
+export async function measureDOM(
+	renderer: RendererHarness,
+	cssSelector: string
+) {
+	const rect = await renderer.call.measureDOM(cssSelector)
 	assert.ok(rect)
-
-	const activeWindow = await nut.getActiveWindow()
-	const region = await activeWindow.region
-	const topbarHeight = 25
-
-	const { x, y, width, height } = rect
-	return { width, height, x: x + region.left, y: y + topbarHeight + region.top }
+	return rect
 }
 
-async function click(renderer: RendererHarness, cssSelector: string) {
+export async function click(renderer: RendererHarness, cssSelector: string) {
 	const rect = await measureDOM(renderer, cssSelector)
 	await nut.mouse.move([
 		{
@@ -134,4 +93,8 @@ async function click(renderer: RendererHarness, cssSelector: string) {
 	])
 
 	await nut.mouse.leftClick()
+}
+
+export function sleep(ms = 0) {
+	return new Promise<void>((resolve) => setTimeout(resolve, ms))
 }

@@ -80,8 +80,13 @@ class TestHarnessSocket {
 		})
 	}
 
-	send(message: Message) {
-		this.socket.write(serializeMessage(message))
+	async send(message: Message) {
+		return new Promise<void>((resolve, reject) =>
+			this.socket.write(serializeMessage(message), (error) => {
+				if (error) reject(error)
+				else resolve()
+			})
+		)
 	}
 
 	onMessage(listener: Listener) {

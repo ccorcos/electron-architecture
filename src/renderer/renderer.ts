@@ -10,7 +10,7 @@ import { SyncWindowRectPlugin } from "./plugins/SyncWindowRectPlugin"
 import { RendererApp } from "./RendererApp"
 import { callMain } from "./RendererIPC"
 
-async function setupTestHarness() {
+async function setupTestHarness(app: RendererApp) {
 	const { connectRendererToTestHarness } = await import("../test/TestHarness")
 	const harness = await connectRendererToTestHarness()
 
@@ -18,7 +18,9 @@ async function setupTestHarness() {
 		const node = document.querySelector(css)
 		if (!node) return
 		const { x, y, width, height } = node.getBoundingClientRect()
-		return { x, y, width, height }
+		// Offset the window position
+		const window = app.state.rect
+		return { x: x + window.x, y: y + window.y, width, height }
 	})
 
 	return harness
@@ -26,12 +28,13 @@ async function setupTestHarness() {
 
 async function main() {
 	const { test, rect } = await callMain.load()
-	const harness = test ? await setupTestHarness() : undefined
 
 	const app = new RendererApp({ rect }, [
 		SyncWindowRectPlugin,
 		DisplayWindowRectPlugin,
 	])
+
+	const harness = test ? await setupTestHarness(app) : undefined
 }
 
 main()
