@@ -10,7 +10,7 @@ nut.keyboard.config.autoDelayMs = 100
 nut.mouse.config.autoDelayMs = 100
 nut.mouse.config.mouseSpeed = 1000
 
-export async function bootup(cliArgs: string[] = []) {
+async function bootup(cliArgs: string[] = []) {
 	const harness = await TestHarness.create()
 
 	// Run the app.
@@ -129,6 +129,8 @@ export async function click(renderer: RendererHarness, cssSelector: string) {
 			y: rect.y + rect.height / 2,
 		},
 	])
+
+	await sleep(50)
 
 	await nut.mouse.leftClick()
 }

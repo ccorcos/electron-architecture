@@ -41,7 +41,7 @@ function callMainFn<T extends keyof RendererToMainIPC>(
 	return promise as any
 }
 
-export function answerMainFn<T extends keyof MainToRendererIPC>(
+function answerMainFn<T extends keyof MainToRendererIPC>(
 	channel: T,
 	fn: MainToRendererIPC[T]
 ) {
