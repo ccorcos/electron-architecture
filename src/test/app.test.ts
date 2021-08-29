@@ -51,9 +51,9 @@ describe("App", function () {
 
 		await window.changedState()
 		const newRect = window.state.rect
-		assert.equal(newRect.y, y)
-		assert.equal(newRect.x, x)
-		assert.equal(newRect.height, height + 200)
-		assert.equal(newRect.width, width + 300)
+		assert.equal(newRect.y, y, "x")
+		assert.equal(newRect.x, x, "y")
+		assert.equal(newRect.height, height + 200, "height")
+		assert.equal(newRect.width, width + 300, "width")
 	})
 })
