@@ -1,11 +1,11 @@
 # Electron Architecture
 
-Goals:
-- state should be immutable and data-only.
-- app should be the container for the state/dispatch loop.
-- plugins should manage side-effects.
-Non-goals:
-- frontend architecture (see: [game counter](https://github.com/ccorcos/game-counter))
+This project is a boilerplate electron app with a thoughtfully designed architecture:
+
+1. Main and renderer processes manage state using a Redux-like state machine.
+2. Electron BrowserWindows are controlled declaratively through the application state.
+3. Electron IPC uses a Proxy enabling "Rename Symbol" and "Find All References" in VSCode.
+4. A TestHarness for end-to-end tests with the ability to call into the main and renderer process and make assertions about the main and renderer process states.
 
 ## Architecture
 
