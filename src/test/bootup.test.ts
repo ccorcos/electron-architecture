@@ -1,4 +1,4 @@
-// import * as nut from "@nut-tree/nut-js"
+import * as nut from "@nut-tree/nut-js"
 // import { createTestHarnessServer } from "../../test/TestHarness"
 // import { tmpDir } from "../../test/tmpDir"
 // import { rootPath } from "../../tools/rootPath"
@@ -9,6 +9,7 @@
 // Tests
 // - start fresh, type, save doc, quit
 // - restart, same doc should be open.
+import { strict as assert } from "assert"
 import * as child_process from "child_process"
 // import * as child_process from "child_process"
 // import * as fs from "fs-extra"
@@ -73,29 +74,30 @@ describe("WindowService", function () {
 
 	it("BootupApp", async () => {
 		const harness = await bootup()
-		console.log("Ready")
+		await sleep(500)
 
-		await sleep(2000)
+		try {
+			console.log("Ready")
+			assert.equal(harness.renderers.length, 1)
 
-		/*
+			// MetaKey is Super.
+			await nut.keyboard.pressKey(nut.Key.LeftSuper, nut.Key.N)
+			await nut.keyboard.releaseKey(nut.Key.LeftSuper, nut.Key.N)
+			await sleep(500)
 
-		harness.main.
-		app.main.windows.length === 1
-		type("Meta-N")
-		app.main.windows.length === 2
+			assert.equal(harness.renderers.length, 2)
 
-		const window = app.main.windows[0]
-		click("body button", window)
+			/*
+				const window = app.main.windows[0]
+				click("body button", window)
 
-
-		move window around
-		new window
-
-
-		*/
-
-		console.log("Closing")
-		await harness.destroy()
+				move window around
+				new window
+			*/
+		} finally {
+			console.log("Closing")
+			await harness.destroy()
+		}
 	})
 })
 

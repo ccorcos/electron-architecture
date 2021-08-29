@@ -24,10 +24,6 @@ app.whenReady().then(async () => {
 
 	const environment: MainEnvironment = { config, app: mainApp }
 
-	mainApp.onDispatch((action) => {
-		harness?.call.dispatchAction(action)
-	})
-
 	app.on("activate", function () {
 		// On macOS it's common to re-create a window in the app when the
 		// dock icon is clicked and there are no other windows open.
