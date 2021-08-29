@@ -46,14 +46,14 @@ describe("App", function () {
 
 		const { y, x, width, height } = window.state.rect
 		const start = { x: x + width, y: y + height }
-		const end = { x: start.x + 30, y: start.y + 20 }
+		const end = { x: start.x - 30, y: start.y - 20 }
 		await drag(start, end)
 
 		await window.changedState()
 		const newRect = window.state.rect
 		assert.equal(newRect.y, y, "x")
 		assert.equal(newRect.x, x, "y")
-		assert.equal(newRect.height, height + 20, "height")
-		assert.equal(newRect.width, width + 30, "width")
+		assert.equal(newRect.height, height - 20, "height")
+		assert.equal(newRect.width, width - 30, "width")
 	})
 })
