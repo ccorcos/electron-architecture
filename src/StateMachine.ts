@@ -12,7 +12,7 @@ export type Actions<R extends AnyReducers<any>> = {
 	[K in keyof R]: { fn: K; args: TupleRest<Parameters<R[K]>> }
 }[keyof R]
 
-type Dispatcher<R extends AnyReducers<any>> = {
+export type Dispatcher<R extends AnyReducers<any>> = {
 	[K in keyof R]: (...args: TupleRest<Parameters<R[K]>>) => void
 }
 

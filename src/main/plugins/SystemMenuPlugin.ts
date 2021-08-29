@@ -61,6 +61,7 @@ export const SystemMenuPlugin: MainAppPlugin = (mainApp) => {
 				submenu: [
 					{
 						label: "New Window",
+						accelerator: "CommandOrControl+N",
 						click() {
 							mainApp.dispatch.newWindow()
 						},

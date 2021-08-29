@@ -2,19 +2,13 @@
 
 import { WindowRect } from "./main/MainState"
 
-export interface RendererToMainIPC {
-	load(): WindowRect
+export type RendererToMainIPC = {
+	load(): { test: boolean; rect: WindowRect }
 	setPosition(args: { x: number; y: number }): void
 	setSize(args: { height: number; width: number }): void
 }
 
-export interface MainToRendererIPC {
+export type MainToRendererIPC = {
 	updatePosition(args: { x: number; y: number }): void
 	updateSize(args: { height: number; width: number }): void
 }
-
-type AnyFunction = (...args: any[]) => any
-
-export type Asyncify<F extends AnyFunction> = ReturnType<F> extends Promise<any>
-	? F
-	: (...args: Parameters<F>) => Promise<ReturnType<F>>

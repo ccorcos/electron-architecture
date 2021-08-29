@@ -1,4 +1,9 @@
-import { EffectPlugin, StateMachine } from "../StateMachine"
+import {
+	Actions,
+	Dispatcher,
+	EffectPlugin,
+	StateMachine,
+} from "../StateMachine"
 import { RendererState } from "./RendererState"
 
 function moveWindow(
@@ -28,6 +33,9 @@ const rendererReducers = {
 	resizeWindow,
 }
 
+export type RendererAction = Actions<typeof rendererReducers>
+export type RendererDispatch = Dispatcher<typeof rendererReducers>
+
 export type RendererAppPlugin = EffectPlugin<
 	RendererState,
 	typeof rendererReducers
@@ -37,7 +45,7 @@ export class RendererApp extends StateMachine<
 	RendererState,
 	typeof rendererReducers
 > {
-	constructor(initialState: RendererState, plugins: RendererAppPlugin[]) {
+	constructor(initialState: RendererState, plugins: RendererAppPlugin[] = []) {
 		super(initialState, rendererReducers, plugins)
 	}
 }

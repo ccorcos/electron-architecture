@@ -10,12 +10,34 @@ import { SyncWindowRectPlugin } from "./plugins/SyncWindowRectPlugin"
 import { RendererApp } from "./RendererApp"
 import { callMain } from "./RendererIPC"
 
+async function setupTestHarness() {
+	const { connectRendererToTestHarness } = await import(
+		"../test/AppTestHarness"
+	)
+	const harness = await connectRendererToTestHarness()
+
+	harness.answer.measureDOM((css) => {
+		const node = document.querySelector(css)
+		if (!node) return
+		const { x, y, width, height } = node.getBoundingClientRect()
+		return { x, y, width, height }
+	})
+
+	return harness
+}
+
 async function main() {
-	const rect = await callMain.load()
+	const { test, rect } = await callMain.load()
+	const harness = test ? await setupTestHarness() : undefined
+
 	const app = new RendererApp({ rect }, [
 		SyncWindowRectPlugin,
 		DisplayWindowRectPlugin,
 	])
+
+	app.onDispatch((action) => {
+		harness?.call.dispatchAction(action)
+	})
 }
 
 main()

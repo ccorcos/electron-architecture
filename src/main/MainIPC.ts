@@ -1,7 +1,21 @@
 import { BrowserWindow, ipcMain, IpcRendererEvent } from "electron"
 import { IpcMainEvent } from "electron/main"
 import { deserializeError, serializeError } from "serialize-error"
-import { Asyncify, MainToRendererIPC, RendererToMainIPC } from "../IPC"
+import { MainToRendererIPC, RendererToMainIPC } from "../IPC"
+import { createProxy } from "../shared/proxyHelpers"
+import { Asyncify } from "../shared/typeHelpers"
+
+type CallRenderer = {
+	[T in keyof MainToRendererIPC]: (
+		browserWindow: BrowserWindow,
+		...args: Parameters<MainToRendererIPC[T]>
+	) => ReturnType<Asyncify<MainToRendererIPC[T]>>
+}
+
+export const callRenderer = createProxy<CallRenderer>(
+	(fn, browserWindow, ...args: any) =>
+		callRendererFn(browserWindow, fn, ...args)
+)
 
 type AnswerRenderer = {
 	[T in keyof RendererToMainIPC]: (
@@ -10,15 +24,9 @@ type AnswerRenderer = {
 	) => () => void
 }
 
-export const answerRenderer = new Proxy(
-	{},
-	{
-		get(target, prop: any, receiver) {
-			return (browserWindow: BrowserWindow, fn: any) =>
-				answerRendererFn(browserWindow, prop, fn)
-		},
-	}
-) as AnswerRenderer
+export const answerRenderer = createProxy<AnswerRenderer>(
+	(fn, browserWindow, callback) => answerRendererFn(browserWindow, fn, callback)
+)
 
 function answerRendererFn<T extends keyof RendererToMainIPC>(
 	browserWindow: BrowserWindow,
@@ -48,23 +56,6 @@ function answerRendererFn<T extends keyof RendererToMainIPC>(
 		browserWindow.webContents.off("ipc-message", handler)
 	}
 }
-
-type CallRenderer = {
-	[T in keyof MainToRendererIPC]: (
-		browserWindow: BrowserWindow,
-		...args: Parameters<MainToRendererIPC[T]>
-	) => ReturnType<Asyncify<MainToRendererIPC[T]>>
-}
-
-export const callRenderer = new Proxy(
-	{},
-	{
-		get(target, prop: any, receiver) {
-			return (browserWindow: BrowserWindow, ...args: any[]) =>
-				callRendererFn(browserWindow, prop, ...args)
-		},
-	}
-) as CallRenderer
 
 function callRendererFn<T extends keyof MainToRendererIPC>(
 	browserWindow: BrowserWindow,

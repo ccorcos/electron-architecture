@@ -25,3 +25,14 @@ Non-goals:
 	- socket server apis
 	- sync app state across
 	- get position of button to click it
+
+
+How does this thing work?
+- harness connects to main and renderer processes.
+- harness.main -> call and answer messages from main.
+- harness.renderers -> call and answer from a window.
+
+But there's another way of slicing this...
+- harness.main.call, harness.main.answer, harness.main.state
+- harness.windows[0].call, answer, state
+

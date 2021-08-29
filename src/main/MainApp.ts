@@ -1,4 +1,9 @@
-import { EffectPlugin, StateMachine } from "../StateMachine"
+import {
+	Actions,
+	Dispatcher,
+	EffectPlugin,
+	StateMachine,
+} from "../StateMachine"
 import { randomId } from "../utils"
 import {
 	initMain,
@@ -111,6 +116,9 @@ const mainReducers = {
 	resizeWindow,
 	focusWindow,
 }
+
+export type MainAction = Actions<typeof mainReducers>
+export type MainDispatch = Dispatcher<typeof mainReducers>
 
 export type MainAppPlugin = EffectPlugin<MainState, typeof mainReducers>
 

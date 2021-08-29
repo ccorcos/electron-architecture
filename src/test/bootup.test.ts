@@ -15,9 +15,10 @@ import * as child_process from "child_process"
 import { describe, it } from "mocha"
 import { DeferredPromise } from "../shared/DeferredPromise"
 import { rootPath } from "../tools/rootPath"
+import { createAppTestHarness } from "./AppTestHarness"
 
 async function bootup(cliArgs: string[] = []) {
-	// const harnessServer = await createTestHarnessServer()
+	const harness = await createAppTestHarness()
 
 	// Run the app.
 	const cwd = rootPath(".")
@@ -51,36 +52,50 @@ async function bootup(cliArgs: string[] = []) {
 		}
 	})
 
+	// Monkey-patch destroy. Pretty gross...
+	const destory = harness.destroy
+	harness.destroy = async () => {
+		await destory()
+		child.kill("SIGINT")
+		await deferred.promise
+	}
+
 	// Wait til the application is ready.
 	// await harnessServer.ready()
 
 	// const { mainApp, rendererApp } = harnessServer
 
-	return {
-		// mainApp,
-		// rendererApp,
-		// partition,
-		async close() {
-			// harnessServer.close()
-			child.kill("SIGINT")
-			await deferred.promise
-		},
-		closed() {
-			return deferred.promise
-		},
-	}
+	return harness
 }
 
 describe("WindowService", function () {
 	this.timeout(100000)
 
 	it("BootupApp", async () => {
-		const app = await bootup()
+		const harness = await bootup()
 		console.log("Ready")
 
 		await sleep(2000)
+
+		/*
+
+		harness.main.
+		app.main.windows.length === 1
+		type("Meta-N")
+		app.main.windows.length === 2
+
+		const window = app.main.windows[0]
+		click("body button", window)
+
+
+		move window around
+		new window
+
+
+		*/
+
 		console.log("Closing")
-		await app.close()
+		await harness.destroy()
 	})
 })
 
