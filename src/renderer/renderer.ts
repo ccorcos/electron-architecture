@@ -11,9 +11,7 @@ import { RendererApp } from "./RendererApp"
 import { callMain } from "./RendererIPC"
 
 async function setupTestHarness() {
-	const { connectRendererToTestHarness } = await import(
-		"../test/AppTestHarness"
-	)
+	const { connectRendererToTestHarness } = await import("../test/TestHarness")
 	const harness = await connectRendererToTestHarness()
 
 	harness.answer.measureDOM((css) => {
@@ -34,10 +32,6 @@ async function main() {
 		SyncWindowRectPlugin,
 		DisplayWindowRectPlugin,
 	])
-
-	app.onDispatch((action) => {
-		harness?.call.dispatchAction(action)
-	})
 }
 
 main()

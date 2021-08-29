@@ -4,14 +4,14 @@ import * as child_process from "child_process"
 import { describe, it } from "mocha"
 import { DeferredPromise } from "../shared/DeferredPromise"
 import { rootPath } from "../tools/rootPath"
-import { createAppTestHarness } from "./AppTestHarness"
+import { createTestHarness } from "./TestHarness"
 
 nut.keyboard.config.autoDelayMs = 100
 nut.mouse.config.autoDelayMs = 100
 nut.mouse.config.mouseSpeed = 1000
 
 async function bootup(cliArgs: string[] = []) {
-	const harness = await createAppTestHarness()
+	const harness = await createTestHarness()
 
 	// Run the app.
 	const cwd = rootPath(".")

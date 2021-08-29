@@ -12,7 +12,7 @@ function setupConfig(): Config {
 
 async function setupTestHarness(config: Config) {
 	if (!config.test) return
-	const { connectMainToTestHarness } = await import("../test/AppTestHarness")
+	const { connectMainToTestHarness } = await import("../test/TestHarness")
 	const harness = await connectMainToTestHarness()
 	return harness
 }
