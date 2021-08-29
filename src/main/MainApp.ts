@@ -123,7 +123,7 @@ export type MainDispatch = Dispatcher<typeof mainReducers>
 export type MainAppPlugin = EffectPlugin<MainState, typeof mainReducers>
 
 export class MainApp extends StateMachine<MainState, typeof mainReducers> {
-	constructor(plugins: MainAppPlugin[]) {
+	constructor(plugins: MainAppPlugin[] = []) {
 		super(initMain(), mainReducers, plugins)
 	}
 }

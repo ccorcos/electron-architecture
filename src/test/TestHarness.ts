@@ -1,5 +1,8 @@
 import * as net from "net"
 import { deserializeError, serializeError } from "serialize-error"
+import { MainAction, MainApp } from "../main/MainApp"
+import { RendererAction, RendererApp } from "../renderer/RendererApp"
+import { RendererState } from "../renderer/RendererState"
 import { DeferredPromise } from "../shared/DeferredPromise"
 import { createProxy } from "../shared/proxyHelpers"
 import { Answerer, AnyFunctionMap, Caller } from "../shared/typeHelpers"
@@ -10,37 +13,25 @@ type Rect = { x: number; y: number; width: number; height: number }
 
 type HarnessToRenderer = {
 	measureDOM(cssSelector: string): Rect | undefined
+	getState(): RendererState
 }
 
-type RendererToHarness = {}
+type RendererToHarness = {
+	dispatchAction(action: RendererAction): void
+}
 
 type HarnessToMain = {}
 
-type MainToHarness = {}
+type MainToHarness = {
+	dispatchAction(action: MainAction): void
+}
 
 export const MAIN_PORT = 1337
 export const RENDERER_PORT = 1338
 
-export type RendererHarness = TestHarnessConnection<
-	HarnessToRenderer,
-	RendererToHarness
->
-
-export type MainHarness = TestHarnessConnection<HarnessToMain, MainToHarness>
-
 // ============================================================================
 // Boilerplate
 // ============================================================================
-
-export function connectRendererToTestHarness() {
-	return connectToTestHarness<RendererToHarness, HarnessToRenderer>(
-		RENDERER_PORT
-	)
-}
-
-export function connectMainToTestHarness() {
-	return connectToTestHarness<MainToHarness, HarnessToMain>(MAIN_PORT)
-}
 
 function serializeMessage(json: any): string {
 	return JSON.stringify(json) + "\x00"
@@ -66,7 +57,8 @@ type Message = RequestMessage | ResponseMessage
 
 type Listener = (message: Message) => void
 
-class TestHarnessSocket {
+// This class holds state.
+class HarnessSocket {
 	private listeners = new Set<Listener>()
 
 	constructor(private socket: net.Socket) {
@@ -99,15 +91,12 @@ class TestHarnessSocket {
 	}
 }
 
-export class TestHarnessConnection<
+// This class is pure, just DX for types.
+export class TestHarnessAPI<
 	C extends AnyFunctionMap,
 	A extends AnyFunctionMap
 > {
-	private socket: TestHarnessSocket
-
-	constructor(socket: net.Socket) {
-		this.socket = new TestHarnessSocket(socket)
-	}
+	constructor(private socket: HarnessSocket) {}
 
 	call = createProxy<Caller<C>>((fn: string, ...args) => {
 		const deferred = new DeferredPromise<any>()
@@ -159,7 +148,7 @@ export class TestHarnessConnection<
 	}
 }
 
-export async function connectToTestHarness<
+async function connectToTestHarnessSocket<
 	C extends AnyFunctionMap,
 	A extends AnyFunctionMap
 >(port: number) {
@@ -167,16 +156,27 @@ export async function connectToTestHarness<
 	await new Promise<void>((resolve) =>
 		socket.connect(port, "127.0.0.1", resolve)
 	)
-	const api = new TestHarnessConnection<C, A>(socket)
-	return api
+	return new HarnessSocket(socket)
 }
 
-export async function listenForTestHarnessConnections<
-	C extends AnyFunctionMap,
-	A extends AnyFunctionMap
->(port: number, fn: (connection: TestHarnessConnection<C, A>) => void) {
+export async function connectRendererToTestHarness() {
+	const socket = await connectToTestHarnessSocket(RENDERER_PORT)
+	return new TestHarnessAPI<RendererToHarness, HarnessToRenderer>(socket)
+}
+
+export async function connectMainToTestHarness() {
+	const socket = await connectToTestHarnessSocket(MAIN_PORT)
+	return new TestHarnessAPI<MainToHarness, HarnessToMain>(socket)
+}
+
+// This is run inside the test process.
+export async function listenForTestHarnessSockets(
+	port: number,
+	fn: (socket: HarnessSocket) => void
+) {
 	const server = net.createServer(async (socket) => {
-		fn(new TestHarnessConnection<C, A>(socket))
+		const harnessSocket = new HarnessSocket(socket)
+		fn(harnessSocket)
 	})
 
 	await new Promise<void>((resolve) =>
@@ -190,40 +190,88 @@ export async function listenForTestHarnessConnections<
 	}
 }
 
+// This class is pure, just DX for types.
+export class RendererHarness extends TestHarnessAPI<
+	HarnessToRenderer,
+	RendererToHarness
+> {
+	constructor(socket: HarnessSocket, private app: RendererApp) {
+		super(socket)
+	}
+
+	get state() {
+		return this.app.state
+	}
+
+	changedState() {
+		return new Promise<void>((resolve) => {
+			const stop = this.app.addListener(() => {
+				resolve()
+				stop()
+			})
+		})
+	}
+
+	static async create(socket: HarnessSocket) {
+		const renderer = new TestHarnessAPI<HarnessToRenderer, RendererToHarness>(
+			socket
+		)
+		const initialState = await renderer.call.getState()
+		const app = new RendererApp(initialState)
+		const harness = new RendererHarness(socket, app)
+		harness.answer.dispatchAction((action) => app.dispatchAction(action))
+		return harness
+	}
+}
+
+export class MainHarness extends TestHarnessAPI<HarnessToMain, MainToHarness> {
+	constructor(socket: HarnessSocket, private app: MainApp) {
+		super(socket)
+	}
+
+	get state() {
+		return this.app.state
+	}
+
+	changedState() {
+		return new Promise<void>((resolve) => {
+			const stop = this.app.addListener(() => {
+				resolve()
+				stop()
+			})
+		})
+	}
+
+	static create(socket: HarnessSocket) {
+		const app = new MainApp()
+		const harness = new MainHarness(socket, app)
+		harness.answer.dispatchAction((action) => app.dispatchAction(action))
+		return harness
+	}
+}
+
 type HarnessState = {
 	main: MainHarness | undefined
 	renderers: RendererHarness[]
 }
 
-function connectMain(
-	state: HarnessState,
-	connection: TestHarnessConnection<any, any>
-) {
+function connectMain(state: HarnessState, harness: MainHarness) {
 	if (state.main) throw new Error("Already a main connection.")
-	return { ...state, main: connection }
+	return { ...state, main: harness }
 }
 
-function disconnectMain(
-	state: HarnessState,
-	connection: TestHarnessConnection<any, any>
-) {
+function disconnectMain(state: HarnessState) {
 	return { ...state, main: undefined }
 }
 
-function connectRenderer(
-	state: HarnessState,
-	connection: TestHarnessConnection<any, any>
-) {
-	return { ...state, renderers: [...state.renderers, connection] }
+function connectRenderer(state: HarnessState, harness: RendererHarness) {
+	return { ...state, renderers: [...state.renderers, harness] }
 }
 
-function disconnectRenderer(
-	state: HarnessState,
-	connection: TestHarnessConnection<any, any>
-) {
+function disconnectRenderer(state: HarnessState, harness: RendererHarness) {
 	return {
 		...state,
-		renderers: state.renderers.filter((c) => c !== connection),
+		renderers: state.renderers.filter((x) => x !== harness),
 	}
 }
 
@@ -234,24 +282,29 @@ const harnessReducers = {
 	disconnectRenderer,
 }
 
-class HarnessApp extends StateMachine<HarnessState, typeof harnessReducers> {
+export class TestHarness extends StateMachine<
+	HarnessState,
+	typeof harnessReducers
+> {
 	constructor() {
 		super({ main: undefined, renderers: [] }, harnessReducers, [])
 	}
-}
 
-// connectMain
-// disconnectMain
-// connectRenderer
-// disconnectRenderer
-
-export class TestHarness extends HarnessApp {
 	get main() {
-		return this.state.main
+		return this.state.main!
 	}
 
 	get renderers() {
 		return this.state.renderers
+	}
+
+	changedState() {
+		return new Promise<void>((resolve) => {
+			const stop = this.addListener(() => {
+				resolve()
+				stop()
+			})
+		})
 	}
 
 	async waitUntil(fn: (state: HarnessState) => boolean) {
@@ -277,34 +330,28 @@ export class TestHarness extends HarnessApp {
 	}
 
 	async destroy() {}
-}
 
-export async function createTestHarness(
-	mainPort: number = MAIN_PORT,
-	rendererPort: number = RENDERER_PORT
-) {
-	const harness = new TestHarness()
+	static async create(
+		mainPort: number = MAIN_PORT,
+		rendererPort: number = RENDERER_PORT
+	) {
+		const harness = new TestHarness()
 
-	const servers = await Promise.all([
-		listenForTestHarnessConnections<HarnessToMain, MainToHarness>(
-			mainPort,
-			(connection) => {
-				harness.dispatch.connectMain(connection)
+		const servers = await Promise.all([
+			listenForTestHarnessSockets(mainPort, (socket) => {
+				harness.dispatch.connectMain(MainHarness.create(socket))
+			}),
+			listenForTestHarnessSockets(rendererPort, async (socket) => {
+				harness.dispatch.connectRenderer(await RendererHarness.create(socket))
+			}),
+		])
+
+		harness.destroy = async () => {
+			for (const server of servers) {
+				server.destroy()
 			}
-		),
-		listenForTestHarnessConnections<HarnessToRenderer, RendererToHarness>(
-			rendererPort,
-			(connection) => {
-				harness.dispatch.connectRenderer(connection)
-			}
-		),
-	])
-
-	harness.destroy = async () => {
-		for (const server of servers) {
-			server.destroy()
 		}
-	}
 
-	return harness
+		return harness
+	}
 }

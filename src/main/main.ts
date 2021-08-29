@@ -10,6 +10,9 @@ function setupConfig(): Config {
 	return { test }
 }
 
+/**
+ * This harness doesn't do much currently.
+ */
 async function setupTestHarness(config: Config) {
 	if (!config.test) return
 	const { connectMainToTestHarness } = await import("../test/TestHarness")
@@ -21,6 +24,8 @@ app.whenReady().then(async () => {
 	const config = setupConfig()
 	const harness = await setupTestHarness(config)
 	const mainApp = new MainApp([AppWindowPlugin({ config }), SystemMenuPlugin])
+
+	mainApp.onDispatch((action) => harness?.call.dispatchAction(action))
 
 	const environment: MainEnvironment = { config, app: mainApp }
 

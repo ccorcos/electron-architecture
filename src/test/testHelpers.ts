@@ -4,14 +4,14 @@ import * as child_process from "child_process"
 import { it } from "mocha"
 import { DeferredPromise } from "../shared/DeferredPromise"
 import { rootPath } from "../tools/rootPath"
-import { createTestHarness, RendererHarness, TestHarness } from "./TestHarness"
+import { RendererHarness, TestHarness } from "./TestHarness"
 
 nut.keyboard.config.autoDelayMs = 100
 nut.mouse.config.autoDelayMs = 100
 nut.mouse.config.mouseSpeed = 1000
 
 export async function bootup(cliArgs: string[] = []) {
-	const harness = await createTestHarness()
+	const harness = await TestHarness.create()
 
 	// Run the app.
 	const cwd = rootPath(".")
@@ -81,6 +81,44 @@ export async function measureDOM(
 	const rect = await renderer.call.measureDOM(cssSelector)
 	assert.ok(rect)
 	return rect
+}
+
+export async function type(str: string) {
+	await nut.keyboard.type(str)
+}
+
+const keyboardAliases: Record<string, number | undefined> = {
+	ctrl: nut.Key.LeftControl,
+	control: nut.Key.LeftControl,
+	mod: nut.Key.LeftSuper,
+	meta: nut.Key.LeftSuper,
+	cmd: nut.Key.LeftSuper,
+	" ": nut.Key.Space,
+	left: nut.Key.Left,
+	right: nut.Key.Right,
+	down: nut.Key.Down,
+	up: nut.Key.Up,
+}
+
+function getNormalizedKeys(shortcut: string) {
+	return shortcut
+		.split(/-(?!$)/)
+		.map((str) => str.toLowerCase())
+		.map((char) => {
+			const alias = keyboardAliases[char]
+			if (alias !== undefined) return alias
+			const keyNum: number | undefined = nut.Key[
+				char.toUpperCase() as any
+			] as any
+			if (keyNum === undefined) throw new Error("Unknown key: " + char)
+			return keyNum
+		})
+}
+
+export async function shortcut(str: string) {
+	const parts = getNormalizedKeys(str)
+	await nut.keyboard.pressKey(...parts)
+	await nut.keyboard.releaseKey(...parts)
 }
 
 export async function click(renderer: RendererHarness, cssSelector: string) {

@@ -20,7 +20,14 @@ async function setupTestHarness(app: RendererApp) {
 		const { x, y, width, height } = node.getBoundingClientRect()
 		// Offset the window position
 		const window = app.state.rect
-		return { x: x + window.x, y: y + window.y, width, height }
+		const topbar = 25
+		return { x: x + window.x, y: topbar + y + window.y, width, height }
+	})
+
+	harness.answer.getState(() => app.state)
+
+	app.onDispatch((action) => {
+		harness.call.dispatchAction(action)
 	})
 
 	return harness
