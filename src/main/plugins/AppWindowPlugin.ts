@@ -9,18 +9,24 @@ of the updates. But for now, this is what we're working with.
 import { BrowserWindow } from "electron"
 import { differenceBy, intersectionBy } from "lodash"
 import * as path from "path"
-import { MainApp, MainAppPlugin } from "../MainApp"
+import { MainAppPlugin } from "../MainApp"
+import { MainEnvironment } from "../MainEnvironment"
 import { answerRenderer, callRenderer } from "../MainIPC"
 import { MainState, WindowState } from "../MainState"
 
-export const AppWindowPlugin: MainAppPlugin = (app) => {
-	return new AppWindowController(app)
-}
+export const AppWindowPlugin =
+	(environment: Omit<MainEnvironment, "app">): MainAppPlugin =>
+	(app) => {
+		return new AppWindowController({ ...environment, app })
+	}
 
 class AppWindow {
 	private browserWindow: BrowserWindow
 
-	constructor(private mainApp: MainApp, private windowState: WindowState) {
+	constructor(
+		private environment: MainEnvironment,
+		private windowState: WindowState
+	) {
 		const { id, rect } = windowState
 		this.browserWindow = new BrowserWindow({
 			show: false,
@@ -44,45 +50,50 @@ class AppWindow {
 		this.browserWindow.on("focus", () => {
 			setTimeout(() => {
 				if (!this.windowState.focused) {
-					mainApp.dispatch.focusWindow(id)
+					environment.app.dispatch.focusWindow(id)
 				}
 			})
 		})
 
-		this.browserWindow.on("close", () => mainApp.dispatch.closeWindow(id))
+		this.browserWindow.on("close", () =>
+			environment.app.dispatch.closeWindow(id)
+		)
 
 		this.browserWindow.on("move", () => {
 			const [x, y] = this.browserWindow.getPosition()
 			const { rect } = this.windowState
 			if (rect.x === x && rect.y === y) return
-			mainApp.dispatch.moveWindow(id, { x, y })
+			environment.app.dispatch.moveWindow(id, { x, y })
 		})
 
 		this.browserWindow.on("resize", () => {
 			const [width, height] = this.browserWindow.getSize()
 			const { rect } = this.windowState
 			if (rect.width === width && rect.height === height) return
-			mainApp.dispatch.resizeWindow(id, { width, height })
+			environment.app.dispatch.resizeWindow(id, { width, height })
 		})
 
 		this.browserWindow.on("focus", () => {
 			if (!this.windowState.focused) {
-				mainApp.dispatch.focusWindow(id)
+				environment.app.dispatch.focusWindow(id)
 			}
 		})
 
-		answerRenderer.load(this.browserWindow, () => this.windowState.rect)
+		answerRenderer.load(this.browserWindow, () => ({
+			test: this.environment.config.test,
+			rect: this.windowState.rect,
+		}))
 
 		answerRenderer.setPosition(this.browserWindow, ({ x, y }) => {
 			const { rect } = this.windowState
 			if (rect.x === x && rect.y === y) return
-			mainApp.dispatch.moveWindow(id, { x, y })
+			environment.app.dispatch.moveWindow(id, { x, y })
 		})
 
 		answerRenderer.setSize(this.browserWindow, ({ width, height }) => {
 			const { rect } = this.windowState
 			if (rect.width === width && rect.height === height) return
-			mainApp.dispatch.resizeWindow(id, { width, height })
+			environment.app.dispatch.resizeWindow(id, { width, height })
 		})
 	}
 
@@ -125,14 +136,14 @@ class AppWindow {
 class AppWindowController {
 	private appWindows: { [id: string]: AppWindow } = {}
 
-	constructor(private mainApp: MainApp) {
-		for (const win of [...mainApp.state.windows].reverse()) {
-			this.appWindows[win.id] = new AppWindow(mainApp, win)
+	constructor(private environment: MainEnvironment) {
+		for (const win of [...environment.app.state.windows].reverse()) {
+			this.appWindows[win.id] = new AppWindow(environment, win)
 		}
 	}
 
 	update(prevState: MainState) {
-		const nextState = this.mainApp.state
+		const nextState = this.environment.app.state
 		const createWindows = differenceBy(
 			nextState.windows,
 			prevState.windows,
@@ -163,7 +174,7 @@ class AppWindowController {
 			})
 		}
 		for (const props of createWindows) {
-			this.appWindows[props.id] = new AppWindow(this.mainApp, {
+			this.appWindows[props.id] = new AppWindow(this.environment, {
 				...props,
 				focused: focusedId === props.id,
 			})

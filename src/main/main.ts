@@ -1,24 +1,28 @@
 import { app, BrowserWindow } from "electron"
+import { Config } from "./Config"
 import { MainApp } from "./MainApp"
+import { MainEnvironment } from "./MainEnvironment"
 import { AppWindowPlugin } from "./plugins/AppWindowPlugin"
 import { SystemMenuPlugin } from "./plugins/SystemMenuPlugin"
 
-const test = process.argv.slice(2).indexOf("--test") !== -1
+function setupConfig(): Config {
+	const test = process.argv.slice(2).indexOf("--test") !== -1
+	return { test }
+}
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-
-async function setupTestHarness() {
+async function setupTestHarness(config: Config) {
+	if (!config.test) return
 	const { connectMainToTestHarness } = await import("../test/AppTestHarness")
 	const harness = await connectMainToTestHarness()
 	return harness
 }
 
 app.whenReady().then(async () => {
-	const harness = test ? await setupTestHarness() : undefined
+	const config = setupConfig()
+	const harness = await setupTestHarness(config)
+	const mainApp = new MainApp([AppWindowPlugin({ config }), SystemMenuPlugin])
 
-	const mainApp = new MainApp([AppWindowPlugin, SystemMenuPlugin])
+	const environment: MainEnvironment = { config, app: mainApp }
 
 	mainApp.onDispatch((action) => {
 		harness?.call.dispatchAction(action)
