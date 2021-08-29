@@ -3,6 +3,7 @@ import { deserializeError, serializeError } from "serialize-error"
 import { DeferredPromise } from "../shared/DeferredPromise"
 import { createProxy } from "../shared/proxyHelpers"
 import { Answerer, AnyFunctionMap, Caller } from "../shared/typeHelpers"
+import { StateMachine } from "../StateMachine"
 import { randomId } from "../utils"
 
 function serializeMessage(json: any): string {
@@ -33,6 +34,7 @@ class TestHarnessSocket {
 	private listeners = new Set<Listener>()
 
 	constructor(private socket: net.Socket) {
+		socket.setNoDelay(true)
 		socket.on("data", (data) => {
 			for (const message of parseMessages(data)) {
 				this.listeners.forEach((listener) => {
@@ -70,10 +72,12 @@ export class TestHarnessConnection<
 		const deferred = new DeferredPromise<any>()
 		const id = randomId()
 
+		// const ms = Date.now()
 		const stop = this.socket.onMessage((message) => {
 			if (message.type !== "response") return
 			if (message.id !== id) return
 
+			// console.log("response", id, Date.now() - ms)
 			if (message.error) {
 				deferred.reject(deserializeError(message.error))
 			} else {
@@ -119,7 +123,6 @@ export async function connectToTestHarness<
 	A extends AnyFunctionMap
 >(port: number) {
 	const socket = new net.Socket()
-	socket.setNoDelay(true)
 	await new Promise<void>((resolve) =>
 		socket.connect(port, "127.0.0.1", resolve)
 	)
@@ -146,14 +149,102 @@ export async function listenForTestHarnessConnections<
 	}
 }
 
+type HarnessState<
+	Cm extends AnyFunctionMap = any,
+	Am extends AnyFunctionMap = any,
+	Cr extends AnyFunctionMap = any,
+	Ar extends AnyFunctionMap = any
+> = {
+	main: TestHarnessConnection<Cm, Am> | undefined
+	renderers: TestHarnessConnection<Cr, Ar>[]
+}
+
+function connectMain(
+	state: HarnessState,
+	connection: TestHarnessConnection<any, any>
+) {
+	if (state.main) throw new Error("Already a main connection.")
+	return { ...state, main: connection }
+}
+
+function disconnectMain(
+	state: HarnessState,
+	connection: TestHarnessConnection<any, any>
+) {
+	return { ...state, main: undefined }
+}
+
+function connectRenderer(
+	state: HarnessState,
+	connection: TestHarnessConnection<any, any>
+) {
+	return { ...state, renderers: [...state.renderers, connection] }
+}
+
+function disconnectRenderer(
+	state: HarnessState,
+	connection: TestHarnessConnection<any, any>
+) {
+	return {
+		...state,
+		renderers: state.renderers.filter((c) => c !== connection),
+	}
+}
+
+const harnessReducers = {
+	connectMain,
+	disconnectMain,
+	connectRenderer,
+	disconnectRenderer,
+}
+
+class HarnessApp extends StateMachine<HarnessState, typeof harnessReducers> {
+	constructor() {
+		super({ main: undefined, renderers: [] }, harnessReducers, [])
+	}
+}
+
+// connectMain
+// disconnectMain
+// connectRenderer
+// disconnectRenderer
+
 export class TestHarness<
 	Cm extends AnyFunctionMap,
 	Am extends AnyFunctionMap,
 	Cr extends AnyFunctionMap,
 	Ar extends AnyFunctionMap
-> {
-	main: TestHarnessConnection<Cm, Am> | undefined
-	renderers: TestHarnessConnection<Cr, Ar>[] = []
+> extends HarnessApp {
+	get main() {
+		return this.state.main as TestHarnessConnection<Cm, Am> | undefined
+	}
+
+	get renderers() {
+		return this.state.renderers as TestHarnessConnection<Cr, Ar>[]
+	}
+
+	async waitUntil(fn: (state: HarnessState<Cm, Am, Cr, Ar>) => boolean) {
+		const deferred = new DeferredPromise()
+
+		const check = () => {
+			if (fn(this.state)) {
+				deferred.resolve()
+			}
+		}
+
+		const stop = this.addListener(check)
+		check()
+
+		await deferred.promise
+		stop()
+	}
+
+	waitUntilReady() {
+		return this.waitUntil((state) => {
+			return Boolean(state.main) && state.renderers.length > 0
+		})
+	}
+
 	async destroy() {}
 }
 
@@ -167,18 +258,10 @@ export async function createTestHarness<
 
 	const servers = await Promise.all([
 		listenForTestHarnessConnections<Cr, Ar>(rendererPort, (connection) => {
-			harness.renderers.push(connection)
-			connection.onClose(() => {
-				const index = harness.renderers.indexOf(connection)
-				if (index !== -1) harness.renderers.splice(index, 1)
-			})
+			harness.dispatch.connectRenderer(connection)
 		}),
 		listenForTestHarnessConnections<Cm, Am>(mainPort, (connection) => {
-			if (harness.main) throw new Error("Already a main connection.")
-			harness.main = connection
-			connection.onClose(() => {
-				harness.main = undefined
-			})
+			harness.dispatch.connectMain(connection)
 		}),
 	])
 

@@ -6,9 +6,9 @@ import { DeferredPromise } from "../shared/DeferredPromise"
 import { rootPath } from "../tools/rootPath"
 import { createAppTestHarness } from "./AppTestHarness"
 
-nut.keyboard.config.autoDelayMs = 0.1
-nut.mouse.config.autoDelayMs = 500
-nut.mouse.config.mouseSpeed = 1
+nut.keyboard.config.autoDelayMs = 100
+nut.mouse.config.autoDelayMs = 100
+nut.mouse.config.mouseSpeed = 1000
 
 async function bootup(cliArgs: string[] = []) {
 	const harness = await createAppTestHarness()
@@ -58,6 +58,8 @@ async function bootup(cliArgs: string[] = []) {
 
 	// const { mainApp, rendererApp } = harnessServer
 
+	await harness.waitUntilReady()
+
 	return harness
 }
 
@@ -66,9 +68,6 @@ describe("WindowService", function () {
 
 	it("BootupApp", async () => {
 		const harness = await bootup()
-
-		// TODO: wait for main and renderer process to connect.
-		await sleep(2000)
 
 		try {
 			console.log("Ready")
@@ -101,7 +100,7 @@ describe("WindowService", function () {
 
 			for (let i = 0; i < 10; i++) {
 				await clickButton()
-				await sleep(500)
+				// await sleep(500)
 			}
 
 			await sleep(5000)
