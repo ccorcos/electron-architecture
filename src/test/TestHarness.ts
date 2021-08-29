@@ -21,6 +21,13 @@ type MainToHarness = {}
 export const MAIN_PORT = 1337
 export const RENDERER_PORT = 1338
 
+export type RendererHarness = TestHarnessConnection<
+	HarnessToRenderer,
+	RendererToHarness
+>
+
+export type MainHarness = TestHarnessConnection<HarnessToMain, MainToHarness>
+
 // ============================================================================
 // Boilerplate
 // ============================================================================
@@ -179,8 +186,8 @@ export async function listenForTestHarnessConnections<
 }
 
 type HarnessState = {
-	main: TestHarnessConnection<HarnessToMain, MainToHarness> | undefined
-	renderers: TestHarnessConnection<HarnessToRenderer, RendererToHarness>[]
+	main: MainHarness | undefined
+	renderers: RendererHarness[]
 }
 
 function connectMain(
@@ -235,16 +242,11 @@ class HarnessApp extends StateMachine<HarnessState, typeof harnessReducers> {
 
 export class TestHarness extends HarnessApp {
 	get main() {
-		return this.state.main as
-			| TestHarnessConnection<HarnessToMain, MainToHarness>
-			| undefined
+		return this.state.main
 	}
 
 	get renderers() {
-		return this.state.renderers as TestHarnessConnection<
-			HarnessToRenderer,
-			RendererToHarness
-		>[]
+		return this.state.renderers
 	}
 
 	async waitUntil(fn: (state: HarnessState) => boolean) {
