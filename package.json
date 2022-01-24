@@ -21,7 +21,7 @@
   "author": "GitHub",
   "license": "CC0-1.0",
   "devDependencies": {
-    "@nut-tree/nut-js": "^1.7.0",
+    "@nut-tree/nut-js": "^2.0.1",
     "@types/lodash": "^4.14.171",
     "@types/mocha": "whitecolor/mocha-types",
     "@typescript-eslint/eslint-plugin": "^4.28.4",
