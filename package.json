@@ -26,7 +26,7 @@
     "@types/mocha": "whitecolor/mocha-types",
     "@typescript-eslint/eslint-plugin": "^4.28.4",
     "@typescript-eslint/parser": "^4.28.4",
-    "electron": "^13.1.7",
+    "electron": "^17.1.0",
     "eslint": "^7.31.0",
     "mocha": "^8.4.0",
     "typescript": "^4.3.5"
