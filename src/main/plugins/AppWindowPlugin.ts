@@ -9,19 +9,17 @@ of the updates. But for now, this is what we're working with.
 import { BrowserWindow } from "electron"
 import { differenceBy, intersectionBy } from "lodash"
 import * as path from "path"
-import { MainAppPlugin } from "../MainApp"
 import { MainEnvironment } from "../MainEnvironment"
-import { answerRenderer, callRenderer } from "../MainIPC"
+import { MainIPCPeer } from "../MainIPC"
 import { MainState, WindowState } from "../MainState"
 
-export const AppWindowPlugin =
-	(environment: Omit<MainEnvironment, "app">): MainAppPlugin =>
-	(app) => {
-		return new AppWindowController({ ...environment, app })
-	}
+export const AppWindowPlugin = (environment: MainEnvironment) => {
+	return new AppWindowController({ ...environment })
+}
 
 class AppWindow {
 	private browserWindow: BrowserWindow
+	private ipc: MainIPCPeer
 
 	constructor(
 		private environment: MainEnvironment,
@@ -37,6 +35,9 @@ class AppWindow {
 				preload: path.join(__dirname, "../../renderer/preload.js"),
 			},
 		})
+
+		this.ipc = new MainIPCPeer(this.browserWindow)
+
 		this.browserWindow.loadFile(path.join(__dirname, "../../../index.html"))
 
 		this.browserWindow.once("ready-to-show", () => {
@@ -79,18 +80,18 @@ class AppWindow {
 			}
 		})
 
-		answerRenderer.load(this.browserWindow, () => ({
+		this.ipc.answer.load(() => ({
 			test: this.environment.config.test,
 			rect: this.windowState.rect,
 		}))
 
-		answerRenderer.setPosition(this.browserWindow, ({ x, y }) => {
+		this.ipc.answer.setPosition(({ x, y }) => {
 			const { rect } = this.windowState
 			if (rect.x === x && rect.y === y) return
 			environment.app.dispatch.moveWindow(id, { x, y })
 		})
 
-		answerRenderer.setSize(this.browserWindow, ({ width, height }) => {
+		this.ipc.answer.setSize(({ width, height }) => {
 			const { rect } = this.windowState
 			if (rect.width === width && rect.height === height) return
 			environment.app.dispatch.resizeWindow(id, { width, height })
@@ -116,7 +117,7 @@ class AppWindow {
 
 		if (prevRect.x !== nextRect.x || prevRect.y !== nextRect.y) {
 			this.browserWindow.setPosition(nextRect.x, nextRect.y, false)
-			callRenderer.updatePosition(this.browserWindow, nextRect)
+			this.ipc.call.updatePosition(nextRect)
 		}
 
 		if (
@@ -124,7 +125,7 @@ class AppWindow {
 			prevRect.width !== nextRect.width
 		) {
 			this.browserWindow.setSize(nextRect.width, nextRect.height, false)
-			callRenderer.updateSize(this.browserWindow, nextRect)
+			this.ipc.call.updateSize(nextRect)
 		}
 	}
 

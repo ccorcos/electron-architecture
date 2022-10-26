@@ -8,7 +8,8 @@
 import { DisplayWindowRectPlugin } from "./plugins/DisplayWindowRectPlugin"
 import { SyncWindowRectPlugin } from "./plugins/SyncWindowRectPlugin"
 import { RendererApp } from "./RendererApp"
-import { callMain } from "./RendererIPC"
+import { RendererEnvironment } from "./RendererEnvironment"
+import { RendererIPCPeer } from "./RendererIPC"
 
 async function setupTestHarness(app: RendererApp) {
 	const { connectRendererToTestHarness } = await import("../test/TestHarness")
@@ -34,14 +35,17 @@ async function setupTestHarness(app: RendererApp) {
 }
 
 async function main() {
-	const { test, rect } = await callMain.load()
+	const ipc = new RendererIPCPeer()
+	const { test, rect } = await ipc.call.load()
 
-	const app = new RendererApp({ rect }, [
-		SyncWindowRectPlugin,
-		DisplayWindowRectPlugin,
-	])
+	const app = new RendererApp({ rect })
+
+	app.plug(new DisplayWindowRectPlugin(app))
 
 	const harness = test ? await setupTestHarness(app) : undefined
+
+	const environment: RendererEnvironment = { ipc, app, harness }
+	app.plug(new SyncWindowRectPlugin(environment))
 }
 
 main()

@@ -5,8 +5,8 @@ import { RendererAction, RendererApp } from "../renderer/RendererApp"
 import { RendererState } from "../renderer/RendererState"
 import { DeferredPromise } from "../shared/DeferredPromise"
 import { createProxy } from "../shared/proxyHelpers"
+import { StateMachine } from "../shared/StateMachine"
 import { Answerer, AnyFunctionMap, Caller } from "../shared/typeHelpers"
-import { StateMachine } from "../StateMachine"
 import { randomId } from "../utils"
 
 type Rect = { x: number; y: number; width: number; height: number }
@@ -159,12 +159,19 @@ async function connectToTestHarnessSocket<
 	return new HarnessSocket(socket)
 }
 
-export async function connectRendererToTestHarness() {
+export type RendererHarnessApi = TestHarnessAPI<
+	RendererToHarness,
+	HarnessToRenderer
+>
+
+export async function connectRendererToTestHarness(): Promise<RendererHarnessApi> {
 	const socket = await connectToTestHarnessSocket(RENDERER_PORT)
 	return new TestHarnessAPI<RendererToHarness, HarnessToRenderer>(socket)
 }
 
-export async function connectMainToTestHarness() {
+export type MainHarnessApi = TestHarnessAPI<MainToHarness, HarnessToMain>
+
+export async function connectMainToTestHarness(): Promise<MainHarnessApi> {
 	const socket = await connectToTestHarnessSocket(MAIN_PORT)
 	return new TestHarnessAPI<MainToHarness, HarnessToMain>(socket)
 }
@@ -287,7 +294,7 @@ export class TestHarness extends StateMachine<
 	typeof harnessReducers
 > {
 	constructor() {
-		super({ main: undefined, renderers: [] }, harnessReducers, [])
+		super({ main: undefined, renderers: [] }, harnessReducers)
 	}
 
 	get main() {

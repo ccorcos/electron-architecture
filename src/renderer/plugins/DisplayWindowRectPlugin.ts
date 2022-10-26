@@ -1,10 +1,6 @@
-import { RendererApp, RendererAppPlugin } from "../RendererApp"
+import { RendererApp } from "../RendererApp"
 
-export const DisplayWindowRectPlugin: RendererAppPlugin = (app) => {
-	return new DisplayWindowRectController(app)
-}
-
-class DisplayWindowRectController {
+export class DisplayWindowRectPlugin {
 	details: HTMLDivElement
 	button: HTMLButtonElement
 
