@@ -1,7 +1,6 @@
 // TODO: don't extends this interface...
 
-import { WindowRect } from "../main/MainState"
-import { AsyncApi } from "./typeHelpers"
+import { AsyncApi, WindowRect } from "./typeHelpers"
 
 export const ipcChannel = "ipc-channel"
 

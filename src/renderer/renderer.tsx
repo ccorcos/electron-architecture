@@ -12,17 +12,24 @@ import { RendererEnvironment } from "./RendererEnvironment"
 import { RendererIPCPeer } from "./RendererIPC"
 
 async function setupTestHarness(app: RendererApp) {
-	const { connectRendererToTestHarness } = await import("../test/TestHarness")
+	const { connectRendererToTestHarness } = await import(
+		"../test/harness/RendererTestHarnessClient"
+	)
 	const harness = await connectRendererToTestHarness()
 
 	harness.answer.measureDOM((css) => {
 		const node = document.querySelector(css)
 		if (!node) return
-		const { x, y, width, height } = node.getBoundingClientRect()
+		const { left, top, width, height } = node.getBoundingClientRect()
 		// Offset the window position
 		const window = app.state.rect
 		const topbar = 25
-		return { x: x + window.x, y: topbar + y + window.y, width, height }
+		return {
+			left: left + window.x,
+			top: topbar + top + window.y,
+			width,
+			height,
+		}
 	})
 
 	harness.answer.getState(() => app.state)

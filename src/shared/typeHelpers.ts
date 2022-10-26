@@ -54,3 +54,10 @@ export type PopupApi<Args> = {
 	render(args: Args): void
 	destroy(): void
 }
+
+export type WindowRect = {
+	x: number
+	y: number
+	width: number
+	height: number
+}

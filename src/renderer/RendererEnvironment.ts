@@ -1,9 +1,9 @@
-import { RendererHarnessApi } from "../test/TestHarness"
+import { RendererTestHarnessClient } from "../test/harness/RendererTestHarnessClient"
 import { RendererApp } from "./RendererApp"
 import { RendererIPCPeer } from "./RendererIPC"
 
 export type RendererEnvironment = {
 	ipc: RendererIPCPeer
 	app: RendererApp
-	harness?: RendererHarnessApi
+	harness?: RendererTestHarnessClient
 }

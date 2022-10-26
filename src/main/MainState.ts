@@ -1,11 +1,5 @@
+import { WindowRect } from "../shared/typeHelpers"
 import { randomId } from "../utils"
-
-export type WindowRect = {
-	x: number
-	y: number
-	width: number
-	height: number
-}
 
 export type WindowState = {
 	id: string

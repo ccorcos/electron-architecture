@@ -1,12 +1,12 @@
-import { AnyFunction } from "./typeHelpers"
+import { AnyFunctionMap } from "./typeHelpers"
 
 /** Warning: this is not soundly typed. */
-export function createProxy<HandlerObj extends { [key: string]: AnyFunction }>(
-	getFn: <Key extends keyof HandlerObj>(
+export function createProxy<HandlerObj extends AnyFunctionMap>(
+	getFn: <Key extends keyof HandlerObj & string>(
 		key: Key,
 		...args: Parameters<HandlerObj[Key]>
 	) => any,
-	setFn?: <Key extends keyof HandlerObj>(
+	setFn?: <Key extends keyof HandlerObj & string>(
 		key: Key,
 		value: HandlerObj[Key]
 	) => any

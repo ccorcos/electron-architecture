@@ -1,5 +1,5 @@
 import { BrowserWindow } from "electron"
-import { ipcChannel, MainToRendererIPC, RendererToMainIPC } from "../shared/ipc"
+import { ipcChannel, MainToRendererIPC, RendererToMainIPC } from "../shared/IPC"
 import { IPCMessage, IPCPeer } from "../shared/IPCPeer"
 
 /** An IPC peer to communicate with the main process */

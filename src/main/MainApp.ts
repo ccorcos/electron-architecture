@@ -4,14 +4,9 @@ import {
 	EffectPlugin,
 	StateMachine,
 } from "../shared/StateMachine"
+import { WindowRect } from "../shared/typeHelpers"
 import { randomId } from "../utils"
-import {
-	initMain,
-	initRect,
-	MainState,
-	WindowRect,
-	WindowState,
-} from "./MainState"
+import { initMain, initRect, MainState, WindowState } from "./MainState"
 
 function newWindow(state: MainState): MainState {
 	const { windows } = state
