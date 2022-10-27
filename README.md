@@ -224,6 +224,8 @@ test("Move Window Button", async (harness) => {
 })
 ```
 
+TODO: update documentation for using Playwright.
+
 We're using `nut.js` under the hood for all the mouse and keyboard automation so there's no virtual events to worry about. You can do things like drag the browser window around which is not possible Selenium or Spectron.
 
 Also, did I mention that these tests are much faster than Selenium?
