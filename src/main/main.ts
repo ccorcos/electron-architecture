@@ -7,13 +7,11 @@ import { AppWindowPlugin } from "./plugins/AppWindowPlugin"
 import { SystemMenuPlugin } from "./plugins/SystemMenuPlugin"
 
 function setupConfig(): Config {
-	const { test, partition, headless } = yargs(process.argv)
-		.options({
-			test: { type: "boolean", default: false },
-			partition: { type: "string", default: app.getPath("appData") },
-			headless: { type: "boolean", default: false },
-		})
-		.parseSync()
+	const { test, partition, headless } = yargs(process.argv).options({
+		test: { type: "boolean", default: false },
+		partition: { type: "string", default: app.getPath("appData") },
+		headless: { type: "boolean", default: false },
+	}).argv
 
 	const config: Config = { test, partition, headless }
 	console.log({ config })

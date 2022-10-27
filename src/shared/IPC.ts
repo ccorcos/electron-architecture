@@ -1,5 +1,3 @@
-// TODO: don't extends this interface...
-
 import { AsyncApi, WindowRect } from "./typeHelpers"
 
 export const ipcChannel = "ipc-channel"

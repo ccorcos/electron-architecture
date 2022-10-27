@@ -1,17 +1,18 @@
 import * as cpx from "cpx"
-import { build as esbuild, BuildConfig, cliopts } from "estrella"
+import { build as esbuild, BuildConfig } from "estrella"
+import { hideBin } from "yargs/helpers"
+import yargs from "yargs/yargs"
 
-async function buildMainProcessSrc(opts: BuildSrcOptions) {
-	const { watch, dev } = opts
+async function buildMainProcessSrc(watch = false) {
 	const config: BuildConfig = {
 		platform: "node",
 		external: ["electron"],
 		tsconfig: "tsconfig.json",
 		bundle: true,
-		sourcemap: dev ? "inline" : false,
-		sourcesContent: dev,
+		sourcemap: watch ? "inline" : false,
+		sourcesContent: watch,
 		watch: watch,
-		minify: !dev,
+		minify: !watch,
 		clear: false,
 	}
 
@@ -29,18 +30,17 @@ async function buildMainProcessSrc(opts: BuildSrcOptions) {
 	])
 }
 
-async function buildRendererProcessSrc(opts: BuildSrcOptions) {
-	const { watch, dev } = opts
+async function buildRendererProcessSrc(watch = false) {
 	// TODO: Compile away config.test = false
 	await esbuild({
 		entry: "src/renderer/renderer.tsx",
 		outfile: "build/renderer.js",
 		tsconfig: "tsconfig.json",
 		bundle: true,
-		sourcemap: dev ? "inline" : false,
-		sourcesContent: dev,
+		sourcemap: watch ? "inline" : false,
+		sourcesContent: watch,
 		watch: watch,
-		minify: !dev,
+		minify: !watch,
 		clear: false,
 	})
 }
@@ -55,24 +55,21 @@ async function buildFiles(watch = false) {
 	}
 }
 
-type BuildSrcOptions = {
-	watch: boolean
-	dev: boolean
-}
-
-export async function buildSrc(opts: BuildSrcOptions) {
+export async function buildSrc(watch = false) {
 	await Promise.all([
-		buildFiles(opts.watch),
-		buildRendererProcessSrc(opts),
-		buildMainProcessSrc(opts),
+		buildFiles(watch),
+		buildRendererProcessSrc(watch),
+		buildMainProcessSrc(watch),
 	])
 }
 
 if (require.main === module) {
 	async function main() {
-		const [{ dev }] = cliopts.parse(["dev", "Debug build"])
+		const { watch } = yargs(hideBin(process.argv)).options({
+			watch: { type: "boolean", default: false },
+		}).argv
 
-		await buildSrc({ dev, watch: false })
+		await buildSrc(watch)
 	}
 
 	main()

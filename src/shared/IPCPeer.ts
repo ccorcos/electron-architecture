@@ -39,8 +39,6 @@ export type IPCMessage =
 	| IPCCallbackMessage
 	| IPCUnsubscribeMessage
 
-// Note: if you call answer twice for the same function, they will both get called and race.
-// You can catch this in the listen argument to the contructor, but its your responsibility.
 export class IPCPeer<
 	CallAPI extends AnyFunctionMap = AnyFunctionMap,
 	AnswerAPI extends AnyFunctionMap = AnyFunctionMap
@@ -50,16 +48,21 @@ export class IPCPeer<
 			send(message: IPCMessage): Promise<void> | void
 			listen(callback: (message: IPCMessage) => void): () => void
 		}
-	) {}
+	) {
+		const stopListening = this.config.listen(this.answerFn)
+		this.listeners.add(stopListening)
+	}
 
 	private listeners = new Set<() => void>()
+	private answerers = new Map<string, (...args: any[]) => Promise<any>>()
+	private subscriptions = new Map<string, Set<() => void>>()
 
 	call = createProxy<Caller<CallAPI>>((fn: any, ...args: any) =>
 		this.callFn(fn, ...args)
 	)
 
 	answer = createProxy<Answerer<AnswerAPI>>((fn: any, callback: any) =>
-		this.answerFn(fn, callback)
+		this.setAnswerer(fn, callback)
 	)
 
 	callFn(fn: string, ...args: any[]) {
@@ -139,78 +142,102 @@ export class IPCPeer<
 		return promise
 	}
 
-	answerFn(fn: string, callback: (...args: any[]) => Promise<any>) {
-		const subscriptions = new Set<() => void>()
+	answerFn = async (message: IPCMessage) => {
+		if (message.type !== "request") return
+		const { fn } = message
 
-		const stopListening = this.config.listen(async (message) => {
-			if (message.fn !== fn) return
-			if (message.type !== "request") return
-			try {
-				const args = [...message.args]
-				for (const i of message.callbacks) {
-					args[i] = async (...cbArgs: any[]) => {
-						await this.config.send({
-							type: "callback",
-							fn: message.fn,
-							id: message.id,
-							callback: i,
-							args: cbArgs,
-						})
-					}
-				}
+		try {
+			const answerer = this.answerers.get(fn)
+			if (!answerer) {
+				throw new Error(
+					`Could not handle message ${fn}: there were no answerers set to handle this message`
+				)
+			}
 
-				const data = await callback(...args)
-
-				if (isFunction(data)) {
-					const unsubscribe = this.config.listen(async (msg) => {
-						if (message.id !== msg.id) return
-						if (msg.type !== "unsubscribe") return
-						unsubscribe()
-						subscriptions.delete(unsubscribe)
-						data()
+			const args = [...message.args]
+			for (const i of message.callbacks) {
+				args[i] = async (...cbArgs: any[]) => {
+					await this.config.send({
+						type: "callback",
+						fn: message.fn,
+						id: message.id,
+						callback: i,
+						args: cbArgs,
 					})
-					subscriptions.add(unsubscribe)
-
-					const response: IPCResponseMessage = {
-						type: "response",
-						id: message.id,
-						fn,
-					}
-					await this.config.send(response)
-				} else {
-					const response: IPCResponseMessage = {
-						type: "response",
-						id: message.id,
-						fn,
-						data,
-					}
-					await this.config.send(response)
 				}
-			} catch (error) {
+			}
+
+			const data = await Promise.resolve(answerer(...args))
+
+			if (isFunction(data)) {
+				const unsubscribe = this.config.listen(async (msg) => {
+					if (message.id !== msg.id) return
+					if (msg.type !== "unsubscribe") return
+					unsubscribe()
+					this.subscriptions.get(fn)?.delete(unsubscribe)
+					data()
+				})
+				const set = this.subscriptions.get(fn)
+				if (!set) {
+					const set = new Set<() => void>()
+					set.add(unsubscribe)
+					this.subscriptions.set(fn, set)
+				} else {
+					set.add(unsubscribe)
+				}
+
 				const response: IPCResponseMessage = {
 					type: "response",
 					id: message.id,
 					fn,
-					error: serializeError(error),
+				}
+				await this.config.send(response)
+			} else {
+				const response: IPCResponseMessage = {
+					type: "response",
+					id: message.id,
+					fn,
+					data,
 				}
 				await this.config.send(response)
 			}
-		})
-		this.listeners.add(stopListening)
+		} catch (error) {
+			const response: IPCResponseMessage = {
+				type: "response",
+				id: message.id,
+				fn,
+				error: serializeError(error),
+			}
+			await this.config.send(response)
+		}
+	}
 
-		const cleanup = () => subscriptions.forEach((unsub) => unsub())
+	setAnswerer(fn: string, callback: (...args: any[]) => Promise<any>) {
+		if (this.answerers.get(fn)) {
+			throw new Error(`Overriding answerer for ${fn}`)
+		}
+
+		this.answerers.set(fn, callback)
+
+		const cleanup = () => {
+			const subscriptions = this.subscriptions.get(fn)
+			subscriptions?.forEach((unsub) => unsub())
+		}
+
 		this.listeners.add(cleanup)
 
 		return () => {
-			this.listeners.delete(stopListening)
-			stopListening()
-
+			this.answerers.delete(fn)
 			this.listeners.delete(cleanup)
-			this.listeners.add(cleanup)
+
+			cleanup()
 		}
 	}
 
 	destroy() {
+		for (const [key, subscription] of this.subscriptions) {
+			subscription.forEach((unsub) => unsub())
+		}
 		this.listeners.forEach((fn) => fn())
 		this.listeners = new Set()
 	}
