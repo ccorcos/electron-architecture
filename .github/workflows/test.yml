@@ -4,7 +4,8 @@ on: [push, workflow_dispatch]
 
 jobs:
   test:
-    runs-on: macos-latest
+    # runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v1
@@ -15,5 +16,6 @@ jobs:
           node-version: 16.5.0
 
       - run: npm install
+      - run: npm run typecheck
       - run: npm run build
       - run: npm run test

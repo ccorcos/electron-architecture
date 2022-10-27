@@ -3,15 +3,10 @@ import {
 	Dispatcher,
 	EffectPlugin,
 	StateMachine,
-} from "../StateMachine"
-import { randomId } from "../utils"
-import {
-	initMain,
-	initRect,
-	MainState,
-	WindowRect,
-	WindowState,
-} from "./MainState"
+} from "../shared/StateMachine"
+import { WindowRect } from "../shared/typeHelpers"
+import { randomId } from "../shared/utils"
+import { initMain, initRect, MainState, WindowState } from "./MainState"
 
 function newWindow(state: MainState): MainState {
 	const { windows } = state
@@ -123,7 +118,7 @@ export type MainDispatch = Dispatcher<typeof mainReducers>
 export type MainAppPlugin = EffectPlugin<MainState, typeof mainReducers>
 
 export class MainApp extends StateMachine<MainState, typeof mainReducers> {
-	constructor(plugins: MainAppPlugin[] = []) {
-		super(initMain(), mainReducers, plugins)
+	constructor() {
+		super(initMain(), mainReducers)
 	}
 }

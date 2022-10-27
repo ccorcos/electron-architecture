@@ -1,84 +1,40 @@
-import { BrowserWindow, ipcMain, IpcRendererEvent } from "electron"
-import { IpcMainEvent } from "electron/main"
-import { deserializeError, serializeError } from "serialize-error"
-import { MainToRendererIPC, RendererToMainIPC } from "../IPC"
-import { createProxy } from "../shared/proxyHelpers"
-import { Asyncify } from "../shared/typeHelpers"
+import { BrowserWindow } from "electron"
+import { ipcChannel, MainToRendererIPC, RendererToMainIPC } from "../shared/IPC"
+import { IPCMessage, IPCPeer } from "../shared/IPCPeer"
 
-type CallRenderer = {
-	[T in keyof MainToRendererIPC]: (
-		browserWindow: BrowserWindow,
-		...args: Parameters<MainToRendererIPC[T]>
-	) => ReturnType<Asyncify<MainToRendererIPC[T]>>
-}
+/** An IPC peer to communicate with the main process */
+export class MainIPCPeer extends IPCPeer<MainToRendererIPC, RendererToMainIPC> {
+	constructor(browserWindow: BrowserWindow) {
+		browserWindow.webContents.setMaxListeners(15)
 
-export const callRenderer = createProxy<CallRenderer>(
-	(fn, browserWindow, ...args: any) =>
-		callRendererFn(browserWindow, fn, ...args)
-)
-
-type AnswerRenderer = {
-	[T in keyof RendererToMainIPC]: (
-		browserWindow: BrowserWindow,
-		fn: RendererToMainIPC[T]
-	) => () => void
-}
-
-export const answerRenderer = createProxy<AnswerRenderer>(
-	(fn, browserWindow, callback) => answerRendererFn(browserWindow, fn, callback)
-)
-
-function answerRendererFn<T extends keyof RendererToMainIPC>(
-	browserWindow: BrowserWindow,
-	channel: T,
-	fn: (
-		...args: Parameters<RendererToMainIPC[T]>
-	) => ReturnType<RendererToMainIPC[T]>
-) {
-	const handler = async (
-		event: IpcRendererEvent,
-		ipcChannel: string,
-		responseChannel: string,
-		...args: Array<any>
-	) => {
-		if (ipcChannel !== channel) return
-		try {
-			const result = await (fn as any)(...args)
-			browserWindow.webContents.send(responseChannel, { data: result })
-		} catch (error) {
-			browserWindow.webContents.send(responseChannel, {
-				error: serializeError(error),
-			})
-		}
+		super({
+			send: (message) => {
+				if (browserWindow.webContents.isDestroyed()) return
+				if (message.type === "request") {
+					console.log("callRenderer", message.fn)
+				} else {
+					console.log(
+						"answerRenderer",
+						message.fn
+						// message.type === "response" ? message.data : ""
+					)
+				}
+				browserWindow.webContents.send(ipcChannel, message)
+			},
+			listen(callback) {
+				const handler = async (
+					event: any,
+					channel: any,
+					message: IPCMessage
+				) => {
+					if (channel !== ipcChannel) return
+					callback(message)
+				}
+				browserWindow.webContents.on("ipc-message", handler)
+				return () => {
+					browserWindow.webContents.off("ipc-message", handler)
+				}
+			},
+		})
 	}
-	browserWindow.webContents.on("ipc-message", handler)
-	return () => {
-		browserWindow.webContents.off("ipc-message", handler)
-	}
-}
-
-function callRendererFn<T extends keyof MainToRendererIPC>(
-	browserWindow: BrowserWindow,
-	channel: T,
-	...args: Parameters<MainToRendererIPC[T]>
-): ReturnType<Asyncify<MainToRendererIPC[T]>> {
-	const promise = new Promise((resolve, reject) => {
-		const responseChannel = `${channel}-${Date.now()}-${Math.random()}`
-
-		const handler = (
-			event: IpcMainEvent,
-			result: { data: any; error: any }
-		) => {
-			ipcMain.off(responseChannel, handler)
-			if (result.error) {
-				reject(deserializeError(result.error))
-			} else {
-				resolve(result.data)
-			}
-		}
-		ipcMain.on(responseChannel, handler)
-		browserWindow.webContents.send(channel as string, responseChannel, ...args)
-	})
-
-	return promise as any
 }
