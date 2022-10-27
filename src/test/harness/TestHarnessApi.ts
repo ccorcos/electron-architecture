@@ -9,6 +9,7 @@ export type HarnessToRenderer = {
 }
 
 export type RendererToHarness = {
+	ready(): void
 	dispatchAction(action: RendererAction): void
 }
 
@@ -16,4 +17,5 @@ export type HarnessToMain = {}
 
 export type MainToHarness = {
 	dispatchAction(action: MainAction): void
+	ready(): void
 }

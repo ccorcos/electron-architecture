@@ -1,4 +1,5 @@
 import { app, BrowserWindow } from "electron"
+import yargs from "yargs"
 import { Config } from "./Config"
 import { MainApp } from "./MainApp"
 import { MainEnvironment } from "./MainEnvironment"
@@ -6,13 +7,20 @@ import { AppWindowPlugin } from "./plugins/AppWindowPlugin"
 import { SystemMenuPlugin } from "./plugins/SystemMenuPlugin"
 
 function setupConfig(): Config {
-	const test = process.argv.slice(2).indexOf("--test") !== -1
-	return { test }
+	const { test, partition, headless } = yargs(process.argv)
+		.options({
+			test: { type: "boolean", default: false },
+			partition: { type: "string", default: app.getPath("appData") },
+			headless: { type: "boolean", default: false },
+		})
+		.parseSync()
+
+	const config: Config = { test, partition, headless }
+	console.log({ config })
+
+	return config
 }
 
-/**
- * This harness doesn't do much currently.
- */
 async function setupTestHarness(config: Config) {
 	if (!config.test) return
 	const { connectMainToTestHarness } = await import(
@@ -40,6 +48,8 @@ app.whenReady().then(async () => {
 			mainApp.dispatch.newWindow()
 		}
 	})
+
+	harness?.call.ready()
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common

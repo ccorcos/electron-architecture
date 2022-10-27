@@ -5,7 +5,8 @@
 // Use preload.js to selectively enable features
 // needed in the renderer process.
 
-import { DisplayWindowRectPlugin } from "./plugins/DisplayWindowRectPlugin"
+import React, { useState } from "react"
+import ReactDOM from "react-dom"
 import { SyncWindowRectPlugin } from "./plugins/SyncWindowRectPlugin"
 import { RendererApp } from "./RendererApp"
 import { RendererEnvironment } from "./RendererEnvironment"
@@ -41,18 +42,39 @@ async function setupTestHarness(app: RendererApp) {
 	return harness
 }
 
+function App(props: { ipc: RendererIPCPeer }) {
+	const [count, setCount] = useState(0)
+
+	return (
+		<div>
+			<h1>Hello, world!</h1>
+			<div style={{ display: "flex", gap: 8 }}>
+				<button onClick={() => setCount(count + 1)}>increment</button>
+				<span aria-label="count">{count}</span>
+				<button onClick={() => setCount(count - 1)}>decrement</button>
+			</div>
+		</div>
+	)
+}
+
 async function main() {
 	const ipc = new RendererIPCPeer()
 	const { test, rect } = await ipc.call.load()
 
 	const app = new RendererApp({ rect })
 
-	app.plug(new DisplayWindowRectPlugin(app))
-
 	const harness = test ? await setupTestHarness(app) : undefined
 
 	const environment: RendererEnvironment = { ipc, app, harness }
+
 	app.plug(new SyncWindowRectPlugin(environment))
+
+	const root = document.querySelector("#react-root")
+	if (!root) throw new Error("React root not found")
+
+	ReactDOM.render(<App ipc={ipc} />, root)
+
+	harness?.call.ready()
 }
 
 main()

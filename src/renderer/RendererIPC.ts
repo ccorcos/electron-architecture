@@ -5,6 +5,8 @@ import { IPCMessage, IPCPeer } from "../shared/IPCPeer"
 const ipcRenderer: typeof import("electron").ipcRenderer = (window as any)
 	.ipcRenderer
 
+if (!ipcRenderer) throw new Error(`Expected Ipc Renderer to be defined`)
+
 // Due to an issue with the contextBridge, its not possible to remove listeners
 // from the ipcRenderer which creates a significant continuous degradation of
 // performance. So we're going to only subscribe to the ipcChannel once and

@@ -1,5 +1,5 @@
 import { WebSocket, WebSocketServer } from "ws"
-import { DeferredPromise } from "../../app/shared/utils/DeferredPromise"
+import { DeferredPromise } from "../../shared/DeferredPromise"
 import { TestHarnessSocketApi } from "./TestHarness"
 import { TestHarnessWebSocket } from "./TestHarnessWebSocket"
 

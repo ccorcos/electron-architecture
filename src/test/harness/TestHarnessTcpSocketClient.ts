@@ -1,5 +1,5 @@
 import { Socket } from "net"
-import { AnyFunctionMap } from "../../app/shared/utils/typeUtils"
+import { AnyFunctionMap } from "../../shared/typeHelpers"
 import { TestHarnessTcpSocket } from "./TestHarnessTcpSocket"
 
 export async function connectToTestHarnessTcpSocket<

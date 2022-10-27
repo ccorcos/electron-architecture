@@ -1,7 +1,5 @@
-import { MainEnvironment } from "../../app/main/MainEnvironment"
-import { Environment } from "../../app/renderer/Environment"
-import { StateMachine } from "../../app/shared/StateMachine"
-import { DeferredPromise } from "../../app/shared/utils/DeferredPromise"
+import { DeferredPromise } from "../../shared/DeferredPromise"
+import { StateMachine } from "../../shared/StateMachine"
 import { MAIN_PORT, RENDERER_PORT, TestHarnessIpc } from "./TestHarness"
 import {
 	HarnessToMain,
@@ -15,31 +13,12 @@ import { listenForTestHarnessWebSockets } from "./TestHarnessWebSocketServer"
 export class RendererHarnessConnection extends TestHarnessIpc<
 	HarnessToRenderer,
 	RendererToHarness
-> {
-	async eval<P extends any[], R>(
-		fn: (
-			context: { window: Window; environment: Environment },
-			...args: P
-		) => R,
-		...args: P
-	): Promise<R> {
-		const result = await this.call.eval(fn.toString(), args)
-		return result as R
-	}
-}
+> {}
 
 export class MainHarnessConnection extends TestHarnessIpc<
 	HarnessToMain,
 	MainToHarness
-> {
-	async eval<P extends any[], R>(
-		fn: (environment: MainEnvironment, ...args: P) => R,
-		...args: P
-	): Promise<R> {
-		const result = await this.call.eval(fn.toString(), args)
-		return result as R
-	}
-}
+> {}
 
 type HarnessState = {
 	pendingMain: MainHarnessConnection | undefined
@@ -210,7 +189,6 @@ export class TestHarnessServer extends StateMachine<
 				const main = new MainHarnessConnection(socket)
 				harness.dispatch.connectMain(main)
 				main.answer.ready(() => {
-					console.log("MAIN READY")
 					harness.dispatch.setMainReady()
 				})
 				socket.onClose(() => {
@@ -221,7 +199,6 @@ export class TestHarnessServer extends StateMachine<
 				const renderer = new RendererHarnessConnection(socket)
 				harness.dispatch.connectRenderer(renderer)
 				renderer.answer.ready(() => {
-					console.log("RENDERER READY")
 					harness.dispatch.setRendererReady(renderer)
 				})
 				socket.onClose(() => {

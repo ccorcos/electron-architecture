@@ -1,16 +1,17 @@
 import * as cpx from "cpx"
-import { build as esbuild, BuildConfig } from "estrella"
-import yargs from "yargs"
+import { build as esbuild, BuildConfig, cliopts } from "estrella"
 
-async function buildMainProcessSrc(watch = false) {
+async function buildMainProcessSrc(opts: BuildSrcOptions) {
+	const { watch, dev } = opts
 	const config: BuildConfig = {
 		platform: "node",
 		external: ["electron"],
 		tsconfig: "tsconfig.json",
 		bundle: true,
-		sourcemap: watch ? "inline" : false,
+		sourcemap: dev ? "inline" : false,
+		sourcesContent: dev,
 		watch: watch,
-		minify: !watch,
+		minify: !dev,
 		clear: false,
 	}
 
@@ -28,16 +29,18 @@ async function buildMainProcessSrc(watch = false) {
 	])
 }
 
-async function buildRendererProcessSrc(watch = false) {
+async function buildRendererProcessSrc(opts: BuildSrcOptions) {
+	const { watch, dev } = opts
 	// TODO: Compile away config.test = false
 	await esbuild({
 		entry: "src/renderer/renderer.tsx",
 		outfile: "build/renderer.js",
 		tsconfig: "tsconfig.json",
 		bundle: true,
-		sourcemap: watch ? "inline" : false,
+		sourcemap: dev ? "inline" : false,
+		sourcesContent: dev,
 		watch: watch,
-		minify: !watch,
+		minify: !dev,
 		clear: false,
 	})
 }
@@ -52,25 +55,24 @@ async function buildFiles(watch = false) {
 	}
 }
 
-export async function buildSrc(watch = false) {
+type BuildSrcOptions = {
+	watch: boolean
+	dev: boolean
+}
+
+export async function buildSrc(opts: BuildSrcOptions) {
 	await Promise.all([
-		buildFiles(watch),
-		buildRendererProcessSrc(watch),
-		buildMainProcessSrc(watch),
+		buildFiles(opts.watch),
+		buildRendererProcessSrc(opts),
+		buildMainProcessSrc(opts),
 	])
 }
 
 if (require.main === module) {
 	async function main() {
-		const argv = yargs(process.argv)
-			.options({
-				watch: { type: "boolean" },
-			})
-			.parseSync()
+		const [{ dev }] = cliopts.parse(["dev", "Debug build"])
 
-		const watch = Boolean(argv.watch)
-
-		await buildSrc(watch)
+		await buildSrc({ dev, watch: false })
 	}
 
 	main()

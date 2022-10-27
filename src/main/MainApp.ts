@@ -5,7 +5,7 @@ import {
 	StateMachine,
 } from "../shared/StateMachine"
 import { WindowRect } from "../shared/typeHelpers"
-import { randomId } from "../utils"
+import { randomId } from "../shared/utils"
 import { initMain, initRect, MainState, WindowState } from "./MainState"
 
 function newWindow(state: MainState): MainState {

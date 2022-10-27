@@ -1,5 +1,5 @@
 // import { WebSocket } from "ws"
-import { AnyFunctionMap } from "../../app/shared/utils/typeUtils"
+import { AnyFunctionMap } from "../../shared/typeHelpers"
 import { TestHarnessWebSocket } from "./TestHarnessWebSocket"
 
 // We need to separate the Client/Server into separate files so that we aren't trying
