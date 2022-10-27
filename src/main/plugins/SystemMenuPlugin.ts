@@ -69,6 +69,10 @@ export const SystemMenuPlugin: MainAppPlugin = (mainApp) => {
 					...flatten(items),
 				],
 			},
+			{
+				label: "Develop",
+				submenu: [{ role: "toggleDevTools" }],
+			},
 		])
 		Menu.setApplicationMenu(menu)
 	}

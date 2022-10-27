@@ -1,19 +1,13 @@
-/**
- * Removes the first element from a tuple.
- * TupleRest<[1,2,3> = [2,3]
- */
-export type TupleRest<T extends unknown[]> = T extends [any, ...infer U]
-	? U
-	: never
+import { TupleRest } from "./typeHelpers"
 
-type AnyReducers<S> = { [key: string]: (state: S, ...args: any[]) => S }
+export type AnyReducers<S> = { [key: string]: (state: S, ...args: any[]) => S }
 
 export type Actions<R extends AnyReducers<any>> = {
 	[K in keyof R]: { fn: K; args: TupleRest<Parameters<R[K]>> }
 }[keyof R]
 
-export type Dispatcher<R extends AnyReducers<any>> = {
-	[K in keyof R]: (...args: TupleRest<Parameters<R[K]>>) => void
+export type Dispatcher<R extends AnyReducers<any>, O = void> = {
+	[K in keyof R]: (...args: TupleRest<Parameters<R[K]>>) => O
 }
 
 export type EffectPlugin<S, R extends AnyReducers<S>> = (
@@ -26,14 +20,13 @@ export type Effect<S> = {
 }
 
 export class StateMachine<S, R extends AnyReducers<S>> {
-	private effects: Effect<S>[]
+	private effects: Effect<S>[] = []
 
-	constructor(
-		public state: S,
-		private reducers: R,
-		plugins: EffectPlugin<S, R>[]
-	) {
-		this.effects = plugins.map((plugin) => plugin(this))
+	constructor(public state: S, private reducers: R) {}
+
+	public plug(effect: Effect<S>): this {
+		this.effects.push(effect)
+		return this
 	}
 
 	private onDispatches = new Set<(action: Actions<R>) => void>()

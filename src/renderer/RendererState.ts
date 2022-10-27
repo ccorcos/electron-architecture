@@ -1,9 +1,4 @@
-export type WindowRect = {
-	x: number
-	y: number
-	width: number
-	height: number
-}
+import { WindowRect } from "../shared/typeHelpers"
 
 export type RendererState = {
 	rect: WindowRect

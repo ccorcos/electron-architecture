@@ -1,64 +1,50 @@
-import { ipcRenderer, IpcRendererEvent } from "electron"
-import { deserializeError, serializeError } from "serialize-error"
-import { MainToRendererIPC, RendererToMainIPC } from "../IPC"
-import { createProxy } from "../shared/proxyHelpers"
-import { Answerer, Asyncify, Caller } from "../shared/typeHelpers"
+import { ipcChannel, MainToRendererIPC, RendererToMainIPC } from "../shared/IPC"
+import { IPCMessage, IPCPeer } from "../shared/IPCPeer"
 
-type CallMain = Caller<RendererToMainIPC>
+// This comes from preload.ts using the contextBridge
+const ipcRenderer: typeof import("electron").ipcRenderer = (window as any)
+	.ipcRenderer
 
-export const callMain = createProxy<CallMain>((fn, ...args: any) =>
-	callMainFn(fn, ...args)
-)
+if (!ipcRenderer) throw new Error(`Expected Ipc Renderer to be defined`)
 
-type AnswerMain = Answerer<MainToRendererIPC>
+// Due to an issue with the contextBridge, its not possible to remove listeners
+// from the ipcRenderer which creates a significant continuous degradation of
+// performance. So we're going to only subscribe to the ipcChannel once and
+// manage event listeners ourselves.
+// https://github.com/ccorcos/electron-context-bridge-remove-listener-bug
+// https://github.com/electron/electron/issues/33328
+const ipcChannelListeners = new Set<(message: IPCMessage) => void>()
 
-export const answerMain = createProxy<AnswerMain>((fn, callback) =>
-	answerMainFn(fn, callback)
-)
+let addedIpcListener = false
+function onIpcChannel(handler: (message: IPCMessage) => void) {
+	ipcChannelListeners.add(handler)
 
-function callMainFn<T extends keyof RendererToMainIPC>(
-	channel: T,
-	...args: Parameters<RendererToMainIPC[T]>
-): ReturnType<Asyncify<RendererToMainIPC[T]>> {
-	const promise = new Promise((resolve, reject) => {
-		const responseChannel = `${channel}-${Date.now()}-${Math.random()}`
-
-		const handler = (
-			event: IpcRendererEvent,
-			result: { data: any; error: any }
-		) => {
-			ipcRenderer.off(responseChannel, handler)
-			if (result.error) {
-				reject(deserializeError(result.error))
-			} else {
-				resolve(result.data)
-			}
-		}
-		ipcRenderer.on(responseChannel, handler)
-		ipcRenderer.send(channel as string, responseChannel, ...args)
-	})
-
-	return promise as any
+	if (!addedIpcListener) {
+		ipcRenderer.on(ipcChannel, (event, message) => {
+			ipcChannelListeners.forEach((fn) => fn(message))
+		})
+		addedIpcListener = true
+	}
+	return () => ipcChannelListeners.delete(handler)
 }
 
-function answerMainFn<T extends keyof MainToRendererIPC>(
-	channel: T,
-	fn: MainToRendererIPC[T]
-) {
-	const handler = async (
-		event: IpcRendererEvent,
-		responseChannel: string,
-		...args: Array<any>
-	) => {
-		try {
-			const result = await (fn as any)(...args)
-			ipcRenderer.send(responseChannel, { data: result })
-		} catch (error) {
-			ipcRenderer.send(responseChannel, { error: serializeError(error) })
-		}
-	}
-	ipcRenderer.on(channel as string, handler)
-	return () => {
-		ipcRenderer.off(channel as string, handler)
+export class RendererIPCPeer extends IPCPeer<
+	RendererToMainIPC,
+	MainToRendererIPC
+> {
+	constructor() {
+		super({
+			send: (message) => {
+				if (message.type === "request") {
+					console.log("callMain", message.fn)
+				} else {
+					console.log("answerMain", message.fn)
+				}
+				ipcRenderer.send(ipcChannel, message)
+			},
+			listen(callback) {
+				return onIpcChannel(callback)
+			},
+		})
 	}
 }
