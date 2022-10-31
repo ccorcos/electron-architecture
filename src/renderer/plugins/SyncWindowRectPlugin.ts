@@ -15,17 +15,6 @@ export class SyncWindowRectPlugin {
 		const { ipc, app } = environment
 		this.ipc = ipc
 		this.app = app
-
-		this.listeners.push(
-			ipc.answer.updatePosition(({ x, y }) => {
-				app.dispatch.moveWindow({ x, y })
-			})
-		)
-		this.listeners.push(
-			ipc.answer.updateSize(({ height, width }) => {
-				app.dispatch.resizeWindow({ height, width })
-			})
-		)
 	}
 
 	update(prevState: RendererState) {

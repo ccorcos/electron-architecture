@@ -29,7 +29,7 @@ export const e2eTest = baseTest.extend<ElectronE2ETestFixture>({
 		// Run head-full if the test has a .only annotation
 		// Not the ideal way to do this, but works for now?
 		// https://github.com/microsoft/playwright/issues/18363
-		const isOnly = !(testInfo as any)._test._only
+		const isOnly = (testInfo as any)._test._only
 
 		const args = [
 			rootPath("build/main.js"),
