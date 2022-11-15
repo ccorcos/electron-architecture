@@ -1,7 +1,7 @@
-import { Config } from "./Config"
+import { MainConfig } from "../shared/Config"
 import { MainApp } from "./MainApp"
 
 export interface MainEnvironment {
-	config: Config
+	config: MainConfig
 	app: MainApp
 }

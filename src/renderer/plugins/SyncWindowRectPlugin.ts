@@ -1,28 +1,20 @@
-import { RendererApp, RendererAppPlugin } from "../RendererApp"
-import { answerMain, callMain } from "../RendererIPC"
+import { RendererApp } from "../RendererApp"
+import { RendererEnvironment } from "../RendererEnvironment"
+import { RendererIPCPeer } from "../RendererIPC"
 import { RendererState } from "../RendererState"
-
-export const SyncWindowRectPlugin: RendererAppPlugin = (app) => {
-	return new SyncWindowRectController(app)
-}
 
 /**
  * Updates the local state to match the main process state.
  */
-class SyncWindowRectController {
+export class SyncWindowRectPlugin {
+	private ipc: RendererIPCPeer
+	private app: RendererApp
 	private listeners: (() => void)[] = []
 
-	constructor(private app: RendererApp) {
-		this.listeners.push(
-			answerMain.updatePosition(({ x, y }) => {
-				app.dispatch.moveWindow({ x, y })
-			})
-		)
-		this.listeners.push(
-			answerMain.updateSize(({ height, width }) => {
-				app.dispatch.resizeWindow({ height, width })
-			})
-		)
+	constructor(environment: RendererEnvironment) {
+		const { ipc, app } = environment
+		this.ipc = ipc
+		this.app = app
 	}
 
 	update(prevState: RendererState) {
@@ -34,14 +26,14 @@ class SyncWindowRectController {
 		const prevRect = prevState.rect
 
 		if (nextRect.x !== prevRect.x || nextRect.y !== prevRect.y) {
-			callMain.setPosition(nextRect)
+			this.ipc.call.setPosition(nextRect)
 		}
 
 		if (
 			nextRect.width !== prevRect.width ||
 			nextRect.height !== prevRect.height
 		) {
-			callMain.setSize(nextRect)
+			this.ipc.call.setSize(nextRect)
 		}
 	}
 

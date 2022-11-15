@@ -3,7 +3,7 @@ import {
 	Dispatcher,
 	EffectPlugin,
 	StateMachine,
-} from "../StateMachine"
+} from "../shared/StateMachine"
 import { RendererState } from "./RendererState"
 
 function moveWindow(
@@ -45,7 +45,7 @@ export class RendererApp extends StateMachine<
 	RendererState,
 	typeof rendererReducers
 > {
-	constructor(initialState: RendererState, plugins: RendererAppPlugin[] = []) {
-		super(initialState, rendererReducers, plugins)
+	constructor(initialState: RendererState) {
+		super(initialState, rendererReducers)
 	}
 }

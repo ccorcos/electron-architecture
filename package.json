@@ -1,37 +1,54 @@
 {
-  "name": "electron-quick-start-typescript",
-  "version": "1.0.0",
-  "description": "A minimal Electron application written with Typescript",
-  "scripts": {
-    "build": "tsc",
-    "watch": "tsc -w",
-    "test": "mocha './build/**/*.test.js' --verbose",
-    "lint": "eslint -c .eslintrc --ext .ts ./src",
-    "start": "electron ./build/main/main.js"
-  },
-  "repository": "https://github.com/electron/electron-quick-start-typescript",
-  "keywords": [
-    "Electron",
-    "quick",
-    "start",
-    "tutorial",
-    "demo",
-    "typescript"
-  ],
-  "author": "GitHub",
-  "license": "CC0-1.0",
-  "devDependencies": {
-    "@nut-tree/nut-js": "^1.7.0",
-    "@types/lodash": "^4.14.171",
-    "@types/mocha": "whitecolor/mocha-types",
-    "@typescript-eslint/eslint-plugin": "^4.28.4",
-    "@typescript-eslint/parser": "^4.28.4",
-    "electron": "^13.1.7",
-    "eslint": "^7.31.0",
-    "mocha": "^8.4.0",
-    "typescript": "^4.3.5"
-  },
-  "dependencies": {
-    "lodash": "^4.17.21"
-  }
+	"name": "electron-quick-start-typescript",
+	"version": "1.0.0",
+	"description": "A minimal Electron application written with Typescript",
+	"scripts": {
+		"build": "rm -rf build/* && tsx src/tools/buildSrc.ts",
+		"build:dev": "rm -rf build/* && tsx src/tools/buildSrc.ts --dev",
+		"watch": "tsc --noEmit -w",
+		"test:unit": "mocha 'build/**/*.test.js' --verbose",
+		"test:e2e": "npx playwright test",
+		"test": "run-s build:dev test:e2e",
+		"start": "electron build/main.js"
+	},
+	"repository": "https://github.com/electron/electron-quick-start-typescript",
+	"keywords": [
+		"Electron",
+		"quick",
+		"start",
+		"tutorial",
+		"demo",
+		"typescript"
+	],
+	"author": "GitHub",
+	"license": "CC0-1.0",
+	"devDependencies": {
+		"@playwright/test": "^1.27.1",
+		"@types/cpx": "^1.5.2",
+		"@types/fs-extra": "^9.0.13",
+		"@types/lodash": "^4.14.171",
+		"@types/mocha": "whitecolor/mocha-types",
+		"@types/react": "^18.0.23",
+		"@types/react-dom": "^18.0.7",
+		"@types/ws": "^8.5.3",
+		"@types/yargs": "^17.0.13",
+		"cpx": "^1.5.0",
+		"electron": "^13.1.7",
+		"eslint": "^7.31.0",
+		"estrella": "^1.4.1",
+		"fs-extra": "^10.1.0",
+		"mocha": "^8.4.0",
+		"npm-run-all": "^4.1.5",
+		"tsx": "^3.11.0",
+		"typescript": "^4.8.0",
+		"ws": "^8.10.0",
+		"yargs": "^17.6.0"
+	},
+	"dependencies": {
+		"lodash": "^4.17.21",
+		"outdent": "^0.8.0",
+		"playwright": "^1.27.1",
+		"react": "^18.2.0",
+		"react-dom": "^18.2.0"
+	}
 }
