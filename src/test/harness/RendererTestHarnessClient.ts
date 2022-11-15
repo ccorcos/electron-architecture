@@ -1,4 +1,4 @@
-import { RENDERER_PORT, TestHarnessIpc } from "./TestHarness"
+import { TestHarnessIpc } from "./TestHarness"
 import { HarnessToRenderer, RendererToHarness } from "./TestHarnessApi"
 import { connectToTestHarnessWebSocket } from "./TestHarnessWebSocketClient"
 
@@ -8,7 +8,7 @@ export class RendererTestHarnessClient extends TestHarnessIpc<
 	HarnessToRenderer
 > {}
 
-export async function connectRendererToTestHarness() {
+export async function connectRendererToTestHarness(RENDERER_PORT: number) {
 	const socket = await connectToTestHarnessWebSocket(RENDERER_PORT)
 	return new RendererTestHarnessClient(socket)
 }

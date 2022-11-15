@@ -1,4 +1,4 @@
-import { MAIN_PORT, TestHarnessIpc } from "./TestHarness"
+import { TestHarnessIpc } from "./TestHarness"
 import { HarnessToMain, MainToHarness } from "./TestHarnessApi"
 import { connectToTestHarnessTcpSocket } from "./TestHarnessTcpSocketClient"
 
@@ -8,7 +8,7 @@ export class MainTestHarnessClient extends TestHarnessIpc<
 	HarnessToMain
 > {}
 
-export async function connectMainToTestHarness() {
+export async function connectMainToTestHarness(MAIN_PORT: number) {
 	const socket = await connectToTestHarnessTcpSocket(MAIN_PORT)
 	return new MainTestHarnessClient(socket)
 }

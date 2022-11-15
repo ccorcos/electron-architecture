@@ -27,7 +27,8 @@ class AppWindow {
 		const { id, rect } = windowState
 		const { config } = environment
 
-		const headless = config.test && config.headless
+		const headless = Boolean(config.test?.headless)
+
 		this.browserWindow = new BrowserWindow({
 			show: !headless,
 			...rect,
@@ -73,7 +74,10 @@ class AppWindow {
 		})
 
 		this.ipc.answer.load(() => ({
-			test: this.environment.config.test,
+			test: config.test && {
+				id: config.test.id,
+				PORT: config.test.RENDERER_PORT,
+			},
 			rect: this.windowState.rect,
 		}))
 

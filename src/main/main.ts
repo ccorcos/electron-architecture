@@ -1,37 +1,22 @@
 import { app, BrowserWindow } from "electron"
-import yargs from "yargs"
-import { Config } from "./Config"
+import { MainConfig } from "../shared/Config"
+import { createConfig } from "../shared/createConfig"
 import { MainApp } from "./MainApp"
 import { MainEnvironment } from "./MainEnvironment"
 import { AppWindowPlugin } from "./plugins/AppWindowPlugin"
 import { SystemMenuPlugin } from "./plugins/SystemMenuPlugin"
 
-function setupConfig(): Config {
-	const { test, partition, headless } = yargs(process.argv)
-		.options({
-			test: { type: "boolean", default: false },
-			partition: { type: "string", default: app.getPath("appData") },
-			headless: { type: "boolean", default: false },
-		})
-		.parseSync()
-
-	const config: Config = { test, partition, headless }
-	console.log({ config })
-
-	return config
-}
-
-async function setupTestHarness(config: Config) {
+async function setupTestHarness(config: MainConfig) {
 	if (!config.test) return
 	const { connectMainToTestHarness } = await import(
 		"../test/harness/MainTestHarnessClient"
 	)
-	const harness = await connectMainToTestHarness()
+	const harness = await connectMainToTestHarness(config.test.MAIN_PORT)
 	return harness
 }
 
 app.whenReady().then(async () => {
-	const config = setupConfig()
+	const config = createConfig()
 	const harness = await setupTestHarness(config)
 	const mainApp = new MainApp()
 	mainApp.onDispatch((action) => harness?.call.dispatchAction(action))
@@ -49,7 +34,9 @@ app.whenReady().then(async () => {
 		}
 	})
 
-	harness?.call.ready()
+	if (harness && config.test?.id) {
+		harness?.call.ready(config.test.id)
+	}
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common

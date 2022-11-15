@@ -10,7 +10,10 @@ export async function listenForTestHarnessWebSockets(
 	const sockets: WebSocket[] = []
 
 	const deferred = new DeferredPromise()
-	const server = new WebSocketServer({ port }, deferred.resolve)
+	const server = new WebSocketServer(
+		{ port, host: "127.0.0.1" },
+		deferred.resolve
+	)
 
 	server.on("connection", (socket) => {
 		sockets.push(socket)

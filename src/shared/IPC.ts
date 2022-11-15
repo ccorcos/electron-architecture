@@ -1,11 +1,12 @@
 // TODO: don't extends this interface...
 
-import { AsyncApi, WindowRect } from "./typeHelpers"
+import { RendererConfig } from "./Config"
+import { AsyncApi } from "./typeHelpers"
 
 export const ipcChannel = "ipc-channel"
 
 export type RendererToMainIPC = AsyncApi<{
-	load(): { test: boolean; rect: WindowRect }
+	load(): RendererConfig
 	setPosition(args: { x: number; y: number }): void
 	setSize(args: { height: number; width: number }): void
 }>

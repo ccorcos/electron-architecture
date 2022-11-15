@@ -38,6 +38,3 @@ export class TestHarnessIpc<
 		this.socket.onClose(fn)
 	}
 }
-
-export const MAIN_PORT = 1337
-export const RENDERER_PORT = 1338

@@ -7,16 +7,21 @@
 
 import React, { useState } from "react"
 import ReactDOM from "react-dom"
+import { RendererConfig } from "../shared/Config"
 import { SyncWindowRectPlugin } from "./plugins/SyncWindowRectPlugin"
 import { RendererApp } from "./RendererApp"
 import { RendererEnvironment } from "./RendererEnvironment"
 import { RendererIPCPeer } from "./RendererIPC"
 
-async function setupTestHarness(app: RendererApp) {
+async function setupTestHarness(
+	config: RendererConfig["test"],
+	app: RendererApp
+) {
+	if (!config) return
 	const { connectRendererToTestHarness } = await import(
 		"../test/harness/RendererTestHarnessClient"
 	)
-	const harness = await connectRendererToTestHarness()
+	const harness = await connectRendererToTestHarness(config.PORT)
 
 	harness.answer.measureDOM((css) => {
 		const node = document.querySelector(css)
@@ -63,7 +68,7 @@ async function main() {
 
 	const app = new RendererApp({ rect })
 
-	const harness = test ? await setupTestHarness(app) : undefined
+	const harness = test ? await setupTestHarness(test, app) : undefined
 
 	const environment: RendererEnvironment = { ipc, app, harness }
 
@@ -74,7 +79,9 @@ async function main() {
 
 	ReactDOM.render(<App ipc={ipc} />, root)
 
-	harness?.call.ready()
+	if (harness && test) {
+		harness?.call.ready(test?.id)
+	}
 }
 
 main()

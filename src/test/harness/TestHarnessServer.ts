@@ -1,7 +1,7 @@
 import { DeferredPromise } from "../../shared/DeferredPromise"
 import { StateMachine } from "../../shared/StateMachine"
-import { MAIN_PORT, RENDERER_PORT, TestHarnessIpc } from "./TestHarness"
-import {
+import { TestHarnessIpc, TestHarnessSocketApi } from "./TestHarness"
+import type {
 	HarnessToMain,
 	HarnessToRenderer,
 	MainToHarness,
@@ -20,91 +20,119 @@ export class MainHarnessConnection extends TestHarnessIpc<
 	MainToHarness
 > {}
 
-type HarnessState = {
-	pendingMain: MainHarnessConnection | undefined
+type HarnessTestState = {
 	main: MainHarnessConnection | undefined
-	pendingRenderers: RendererHarnessConnection[]
 	renderers: RendererHarnessConnection[]
 }
 
+type HarnessServerState = {
+	[testId: string]: HarnessTestState | undefined
+}
+
 function connectMain(
-	state: HarnessState,
+	state: HarnessServerState,
+	testId: string,
 	harness: MainHarnessConnection
-): HarnessState {
-	if (state.main || state.pendingMain) {
+): HarnessServerState {
+	const testState = state[testId]
+	if (!testState) {
+		console.error(new Error(`Test ${testId} was undefined`))
+		return state
+	}
+
+	if (testState.main) {
 		console.error(new Error("Already a main connection."))
 		return state
 	}
-	return { ...state, pendingMain: harness }
+	return {
+		...state,
+		[testId]: { ...testState, main: harness },
+	}
 }
 
-function disconnectMain(state: HarnessState): HarnessState {
-	if (state.pendingMain) {
-		return { ...state, pendingMain: undefined }
-	} else {
-		return { ...state, main: undefined }
+function disconnectMain(
+	state: HarnessServerState,
+	testId: string
+): HarnessServerState {
+	const testState = state[testId]
+	if (!testState) {
+		console.error(new Error(`Test ${testId} was undefined`))
+		return state
+	}
+
+	return {
+		...state,
+		[testId]: { ...testState, main: undefined },
 	}
 }
 
 function connectRenderer(
-	state: HarnessState,
+	state: HarnessServerState,
+	testId: string,
 	harness: RendererHarnessConnection
-): HarnessState {
+): HarnessServerState {
+	const testState = state[testId]
+	if (!testState) {
+		console.error(new Error(`Test ${testId} was undefined`))
+		return state
+	}
+
+	if (testState.renderers.includes(harness)) {
+		return state
+	}
+
 	return {
 		...state,
-		pendingRenderers: [...state.pendingRenderers, harness],
+		[testId]: {
+			...testState,
+			renderers: [...testState.renderers, harness],
+		},
 	}
 }
 
 function disconnectRenderer(
-	state: HarnessState,
+	state: HarnessServerState,
+	testId: string,
 	harness: RendererHarnessConnection
-): HarnessState {
-	if (state.pendingRenderers.includes(harness)) {
+): HarnessServerState {
+	const testState = state[testId]
+	if (!testState) {
+		console.error(new Error(`Test ${testId} was undefined`))
+		return state
+	}
+
+	const { renderers } = testState
+
+	if (renderers.includes(harness)) {
 		return {
 			...state,
-			pendingRenderers: state.pendingRenderers.filter((x) => x !== harness),
-		}
-	} else if (state.renderers.includes(harness)) {
-		return {
-			...state,
-			renderers: state.renderers.filter((x) => x !== harness),
+			[testId]: {
+				...testState,
+				renderers: renderers.filter((x) => x !== harness),
+			},
 		}
 	} else {
 		return state
 	}
 }
 
-function setMainReady(state: HarnessState): HarnessState {
-	const main = state.pendingMain
-
+function mountTest(
+	state: HarnessServerState,
+	testId: string
+): HarnessServerState {
 	return {
 		...state,
-		pendingMain: undefined,
-		main,
+		[testId]: {
+			main: undefined,
+			renderers: [],
+		},
 	}
 }
 
-function setRendererReady(
-	state: HarnessState,
-	renderer: RendererHarnessConnection
-): HarnessState {
-	if (
-		state.renderers.includes(renderer) ||
-		!state.pendingRenderers.includes(renderer)
-	) {
-		return state
-	}
-
-	const newPendingRenderers = state.pendingRenderers.filter(
-		(x) => x !== renderer
-	)
-	const newRenderers = [...state.renderers, renderer]
-	return {
-		...state,
-		pendingRenderers: newPendingRenderers,
-		renderers: newRenderers,
-	}
+function unmountTest(state: HarnessServerState, testId: string) {
+	const newState = { ...state }
+	delete newState[testId]
+	return newState
 }
 
 const harnessReducers = {
@@ -112,8 +140,8 @@ const harnessReducers = {
 	disconnectMain,
 	connectRenderer,
 	disconnectRenderer,
-	setMainReady,
-	setRendererReady,
+	mountTest,
+	unmountTest,
 }
 
 /**
@@ -121,19 +149,13 @@ const harnessReducers = {
  * and enables testing by sending them events via ipc.
  */
 export class TestHarnessServer extends StateMachine<
-	HarnessState,
+	HarnessServerState,
 	typeof harnessReducers
 > {
-	constructor(public partition: string) {
-		super(
-			{
-				pendingMain: undefined,
-				pendingRenderers: [],
-				main: undefined,
-				renderers: [],
-			},
-			harnessReducers
-		)
+	private destructors: { destroy: () => Promise<void> }[] = []
+
+	constructor() {
+		super({}, harnessReducers)
 	}
 
 	get main() {
@@ -153,7 +175,7 @@ export class TestHarnessServer extends StateMachine<
 		})
 	}
 
-	async waitUntil(fn: (state: HarnessState) => boolean) {
+	async waitUntil(fn: (state: HarnessServerState) => boolean) {
 		const deferred = new DeferredPromise()
 
 		const check = () => {
@@ -169,49 +191,69 @@ export class TestHarnessServer extends StateMachine<
 		stop()
 	}
 
-	waitUntilReady() {
-		return this.waitUntil((state) => {
-			return Boolean(state.main) && state.renderers.length > 0
+	async waitUntilTestIsReady(testId: string) {
+		await this.waitUntil((state) => {
+			const mainIsReady = Boolean(state[testId]?.main)
+			const rendererIsReady = (state[testId]?.renderers.length || 0) > 0
+
+			return mainIsReady && rendererIsReady
+		})
+
+		return {
+			main: this.state[testId]!.main!,
+			renderers: this.state[testId]!.renderers!,
+		}
+	}
+
+	async destroy() {
+		for (const destructor of this.destructors) {
+			await destructor.destroy()
+		}
+	}
+
+	handleMainConnection = (socket: TestHarnessSocketApi) => {
+		const main = new MainHarnessConnection(socket)
+
+		main.answer.ready((testId) => {
+			// console.log(`main for test ${testId} ready!`)
+			this.dispatch.connectMain(testId, main)
+
+			socket.onClose(() => {
+				this.dispatch.disconnectMain(testId)
+			})
 		})
 	}
 
-	async destroy() {}
+	handleRendererConnection = (socket: TestHarnessSocketApi) => {
+		const renderer = new RendererHarnessConnection(socket)
 
-	static async create(
-		parition: string,
-		mainPort: number = MAIN_PORT,
-		rendererPort: number = RENDERER_PORT
-	) {
-		const harness = new TestHarnessServer(parition)
+		renderer.answer.ready((testId) => {
+			// console.log(`renderer for test ${testId} ready!`)
+			this.dispatch.connectRenderer(testId, renderer)
+
+			socket.onClose(() => {
+				this.dispatch.disconnectRenderer(testId, renderer)
+			})
+		})
+	}
+
+	static async create(MAIN_PORT: number, RENDERER_PORT: number) {
+		const harness = new TestHarnessServer()
 
 		const servers = await Promise.all([
-			listenForTestHarnessTcpSockets(mainPort, (socket) => {
-				const main = new MainHarnessConnection(socket)
-				harness.dispatch.connectMain(main)
-				main.answer.ready(() => {
-					harness.dispatch.setMainReady()
-				})
-				socket.onClose(() => {
-					harness.dispatch.disconnectMain()
-				})
-			}),
-			listenForTestHarnessWebSockets(rendererPort, (socket) => {
-				const renderer = new RendererHarnessConnection(socket)
-				harness.dispatch.connectRenderer(renderer)
-				renderer.answer.ready(() => {
-					harness.dispatch.setRendererReady(renderer)
-				})
-				socket.onClose(() => {
-					harness.dispatch.disconnectRenderer(renderer)
-				})
+			listenForTestHarnessTcpSockets(MAIN_PORT, (socket) =>
+				harness.handleMainConnection(socket)
+			),
+			listenForTestHarnessWebSockets(RENDERER_PORT, (socket) => {
+				harness.handleRendererConnection(socket)
 			}),
 		])
 
-		harness.destroy = async () => {
-			for (const server of servers) {
-				await server.destroy()
-			}
-		}
+		// console.log(
+		// 	`Testing harness is ready; listening for main connections on ${MAIN_PORT} and renderer connections on ${RENDERER_PORT}`
+		// )
+
+		harness.destructors.push(...servers)
 
 		return harness
 	}
